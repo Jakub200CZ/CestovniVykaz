@@ -2,7 +2,7 @@
 //  CestovniVykazApp.swift
 //  CestovniVykaz
 //
-//  Created by Jakub Sedláček on 17.09.2025.
+//  Created by Jakub Sedláček on 27.07.2025.
 //
 
 import SwiftUI
@@ -12,6 +12,7 @@ struct CestovniVykazApp: App {
     var body: some Scene {
         WindowGroup {
             ContentView()
+                .preferredColorScheme(.none) // Automaticky podle systému
         }
     }
 }

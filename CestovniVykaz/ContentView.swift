@@ -2,20 +2,14 @@
 //  ContentView.swift
 //  CestovniVykaz
 //
-//  Created by Jakub Sedláček on 17.09.2025.
+//  Created by Jakub Sedláček on 27.07.2025.
 //
 
 import SwiftUI
 
 struct ContentView: View {
     var body: some View {
-        VStack {
-            Image(systemName: "globe")
-                .imageScale(.large)
-                .foregroundStyle(.tint)
-            Text("Hello, world!")
-        }
-        .padding()
+        AppWrapper()
     }
 }
 

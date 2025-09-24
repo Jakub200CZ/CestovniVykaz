@@ -2,7 +2,7 @@
 //  CestovniVykazUITests.swift
 //  CestovniVykazUITests
 //
-//  Created by Jakub Sedláček on 17.09.2025.
+//  Created by Jakub Sedláček on 27.07.2025.
 //
 
 import XCTest

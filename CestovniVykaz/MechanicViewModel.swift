@@ -1,0 +1,679 @@
+//
+//  MechanicViewModel.swift
+//  CestovniVykaz
+//
+//  Created by Jakub Sedláček on 27.07.2025.
+//
+
+import Foundation
+import SwiftUI
+import Combine
+import WidgetKit
+
+// MARK: - ViewModel
+@MainActor
+class MechanicViewModel: ObservableObject {
+    @Published var monthlyReports: [MonthlyReport] = []
+    @Published var currentMonthReport: MonthlyReport?
+    @Published var fuelEntries: [FuelEntry] = []
+    @Published var customers: [Customer] = []
+    @Published var isLoading = false
+    @Published var errorMessage: String?
+    
+    private let notificationManager = NotificationManager.shared
+    private let widgetDataManager = WidgetDataManager.shared
+    
+    private let userDefaults = UserDefaults.standard
+    private let monthlyReportsKey = "monthlyReports"
+    private let fuelEntriesKey = "fuelEntries"
+    private let customersKey = "customers"
+    
+    init() {
+        // Načíst data na pozadí
+        DispatchQueue.global(qos: .userInitiated).async {
+            // Načíst data na pozadí
+            let reports = self.loadMonthlyReportsBackground()
+            let fuelEntries = self.loadFuelEntriesBackground()
+            let customers = self.loadCustomersBackground()
+            
+            // Aktualizovat UI na main thread
+            DispatchQueue.main.async {
+                self.monthlyReports = reports
+                self.fuelEntries = fuelEntries
+                self.customers = customers
+                self.setupCurrentMonth()
+                self.updateWidgetData()
+            }
+        }
+    }
+    
+    func loadMonthlyReports() {
+        print("DEBUG: loadMonthlyReports - Starting to load data")
+        if let data = userDefaults.data(forKey: monthlyReportsKey) {
+            print("DEBUG: loadMonthlyReports - Found data in UserDefaults")
+            if let reports = try? JSONDecoder().decode([MonthlyReport].self, from: data) {
+                monthlyReports = reports
+                print("DEBUG: loadMonthlyReports - Successfully loaded \(reports.count) monthly reports")
+                for report in reports {
+                    print("DEBUG: loadMonthlyReports - Report for \(report.month) has \(report.workDays.count) work days")
+                }
+            } else {
+                print("DEBUG: loadMonthlyReports - Failed to decode data")
+                monthlyReports = []
+            }
+        } else {
+            print("DEBUG: loadMonthlyReports - No data found in UserDefaults")
+            monthlyReports = []
+        }
+    }
+    
+    // Načítání dat na pozadí bez aktualizace @Published properties
+    nonisolated private func loadMonthlyReportsBackground() -> [MonthlyReport] {
+        print("DEBUG: loadMonthlyReportsBackground - Starting to load data")
+        
+        // Načíst data na main thread, protože UserDefaults je main actor isolated
+        var reports: [MonthlyReport] = []
+        DispatchQueue.main.sync {
+            if let data = userDefaults.data(forKey: monthlyReportsKey) {
+                print("DEBUG: loadMonthlyReportsBackground - Found data in UserDefaults")
+                if let decodedReports = try? JSONDecoder().decode([MonthlyReport].self, from: data) {
+                    reports = decodedReports
+                    print("DEBUG: loadMonthlyReportsBackground - Successfully loaded \(reports.count) monthly reports")
+                    for report in reports {
+                        print("DEBUG: loadMonthlyReportsBackground - Report for \(report.month) has \(report.workDays.count) work days")
+                    }
+                } else {
+                    print("DEBUG: loadMonthlyReportsBackground - Failed to decode data")
+                    reports = []
+                }
+            } else {
+                print("DEBUG: loadMonthlyReportsBackground - No data found in UserDefaults")
+                reports = []
+            }
+        }
+        
+        return reports
+    }
+    
+    func saveMonthlyReports() {
+        if let data = try? JSONEncoder().encode(monthlyReports) {
+            userDefaults.set(data, forKey: monthlyReportsKey)
+        }
+    }
+    
+    func setupCurrentMonth() {
+        let calendar = Calendar.current
+        let currentMonth = calendar.dateInterval(of: .month, for: Date())?.start ?? Date()
+        
+        print("DEBUG: setupCurrentMonth - Current month: \(currentMonth)")
+        print("DEBUG: setupCurrentMonth - Total reports: \(monthlyReports.count)")
+        
+        // Najít existující report pro aktuální měsíc
+        if let existingReport = monthlyReports.first(where: { report in
+            calendar.isDate(report.month, equalTo: currentMonth, toGranularity: .month)
+        }) {
+            currentMonthReport = existingReport
+            print("DEBUG: Found existing current month report with \(existingReport.workDays.count) work days")
+        } else {
+            // Vytvořit nový report pouze pokud neexistuje žádný pro aktuální měsíc
+            let newReport = MonthlyReport(month: currentMonth)
+            currentMonthReport = newReport
+            monthlyReports.append(newReport)
+            saveMonthlyReports()
+            print("DEBUG: Created new empty current month report")
+        }
+        
+        // Debug: Zkontrolovat všechny reporty
+        print("DEBUG: All reports:")
+        for (index, report) in monthlyReports.enumerated() {
+            print("DEBUG: Report \(index): \(report.month) has \(report.workDays.count) work days")
+        }
+    }
+    
+    var currentMonthStats: (drivingHours: Double, workingHours: Double, kilometers: Double) {
+        let calendar = Calendar.current
+        let currentMonth = calendar.dateInterval(of: .month, for: Date())?.start ?? Date()
+        
+        print("DEBUG: currentMonthStats - Current month: \(currentMonth)")
+        print("DEBUG: currentMonthStats - Total reports: \(monthlyReports.count)")
+        print("DEBUG: currentMonthStats - currentMonthReport: \(currentMonthReport?.workDays.count ?? 0) work days")
+        
+        // Použít currentMonthReport pokud existuje
+        if let currentReport = currentMonthReport {
+            let totalDrivingHours = currentReport.workDays.reduce(0) { $0 + $1.drivingHours }
+            let totalWorkingHours = currentReport.workDays.reduce(0) { $0 + $1.workingHours }
+            let totalKilometers = currentReport.workDays.reduce(0) { $0 + $1.kilometers }
+            
+            print("DEBUG: currentMonthStats - Using currentMonthReport with \(currentReport.workDays.count) work days")
+            print("DEBUG: currentMonthStats - Stats: driving=\(totalDrivingHours), working=\(totalWorkingHours), km=\(totalKilometers)")
+            
+            return (totalDrivingHours, totalWorkingHours, totalKilometers)
+        }
+        
+        // Fallback: Najít aktuální měsíc v monthlyReports
+        if let currentReport = monthlyReports.first(where: { report in
+            calendar.isDate(report.month, equalTo: currentMonth, toGranularity: .month)
+        }) {
+            let totalDrivingHours = currentReport.workDays.reduce(0) { $0 + $1.drivingHours }
+            let totalWorkingHours = currentReport.workDays.reduce(0) { $0 + $1.workingHours }
+            let totalKilometers = currentReport.workDays.reduce(0) { $0 + $1.kilometers }
+            
+            print("DEBUG: currentMonthStats - Found current report in monthlyReports with \(currentReport.workDays.count) work days")
+            print("DEBUG: currentMonthStats - Stats: driving=\(totalDrivingHours), working=\(totalWorkingHours), km=\(totalKilometers)")
+            
+            return (totalDrivingHours, totalWorkingHours, totalKilometers)
+        }
+        
+        print("DEBUG: currentMonthStats - No current report found")
+        return (0, 0, 0)
+    }
+    
+    func addWorkDay(_ workDay: WorkDay) {
+        let calendar = Calendar.current
+        let workDayMonth = calendar.dateInterval(of: .month, for: workDay.date)?.start ?? workDay.date
+        
+        // Find or create monthly report for the work day's month
+        if let existingReportIndex = monthlyReports.firstIndex(where: { report in
+            calendar.isDate(report.month, equalTo: workDayMonth, toGranularity: .month)
+        }) {
+            // Add work day to existing report
+            monthlyReports[existingReportIndex].workDays.append(workDay)
+            
+            // Update current month report if this is the current month
+            let currentMonth = calendar.dateInterval(of: .month, for: Date())?.start ?? Date()
+            if calendar.isDate(workDayMonth, equalTo: currentMonth, toGranularity: .month) {
+                currentMonthReport = monthlyReports[existingReportIndex]
+            }
+        } else {
+            // Create new monthly report
+            var newReport = MonthlyReport(month: workDayMonth)
+            newReport.workDays.append(workDay)
+            monthlyReports.append(newReport)
+            
+            // Update current month report if this is the current month
+            let currentMonth = calendar.dateInterval(of: .month, for: Date())?.start ?? Date()
+            if calendar.isDate(workDayMonth, equalTo: currentMonth, toGranularity: .month) {
+                currentMonthReport = newReport
+            }
+        }
+        
+        saveMonthlyReports()
+        
+        // Aktualizovat currentMonthReport
+        setupCurrentMonth()
+        
+        // Aktualizovat widget data
+        updateWidgetData()
+    }
+    
+    func updateWorkDay(_ workDay: WorkDay) {
+        let calendar = Calendar.current
+        let workDayMonth = calendar.dateInterval(of: .month, for: workDay.date)?.start ?? workDay.date
+
+        print("DEBUG: Updating work day for date: \(workDay.date)")
+        print("DEBUG: Work day month: \(workDayMonth)")
+        print("DEBUG: Work day ID: \(workDay.id)")
+
+        // First, find the work day in any report by its ID
+        var foundWorkDay: WorkDay?
+        var sourceReportIndex: Int?
+        var sourceWorkDayIndex: Int?
+
+        for (reportIndex, monthlyReport) in monthlyReports.enumerated() {
+            if let workDayIndex = monthlyReport.workDays.firstIndex(where: { $0.id == workDay.id }) {
+                foundWorkDay = monthlyReport.workDays[workDayIndex]
+                sourceReportIndex = reportIndex
+                sourceWorkDayIndex = workDayIndex
+                print("DEBUG: Found work day in report \(reportIndex) at index \(workDayIndex)")
+                break
+            }
+        }
+
+        guard let foundWorkDay = foundWorkDay,
+              let sourceReportIndex = sourceReportIndex,
+              let sourceWorkDayIndex = sourceWorkDayIndex else {
+            print("DEBUG: Work day not found in any report")
+            return
+        }
+
+        // Check if the month has changed
+        let originalMonth = calendar.dateInterval(of: .month, for: foundWorkDay.date)?.start ?? foundWorkDay.date
+        let newMonth = calendar.dateInterval(of: .month, for: workDay.date)?.start ?? workDay.date
+        let monthChanged = !calendar.isDate(originalMonth, equalTo: newMonth, toGranularity: .month)
+
+        print("DEBUG: Original month: \(originalMonth)")
+        print("DEBUG: New month: \(newMonth)")
+        print("DEBUG: Month changed: \(monthChanged)")
+
+        if monthChanged {
+            // Remove work day from source report
+            var sourceReport = monthlyReports[sourceReportIndex]
+            sourceReport.workDays.remove(at: sourceWorkDayIndex)
+            
+            // Remove empty month
+            if sourceReport.workDays.isEmpty {
+                monthlyReports.remove(at: sourceReportIndex)
+                print("DEBUG: Removed empty month")
+            } else {
+                monthlyReports[sourceReportIndex] = sourceReport
+                print("DEBUG: Updated source report")
+            }
+            print("DEBUG: Removed work day from source report")
+
+            // Find or create target report for the new month
+            var targetReport: MonthlyReport
+            var targetReportIndex: Int
+
+            if let existingTargetIndex = monthlyReports.firstIndex(where: { report in
+                calendar.isDate(report.month, equalTo: workDayMonth, toGranularity: .month)
+            }) {
+                targetReport = monthlyReports[existingTargetIndex]
+                targetReportIndex = existingTargetIndex
+                print("DEBUG: Found existing target report at index \(existingTargetIndex)")
+            } else {
+                targetReport = MonthlyReport(month: workDayMonth)
+                monthlyReports.append(targetReport)
+                targetReportIndex = monthlyReports.count - 1
+                print("DEBUG: Created new target report for month \(workDayMonth)")
+            }
+
+            // Add updated work day to target report
+            targetReport.workDays.append(workDay)
+            monthlyReports[targetReportIndex] = targetReport
+            print("DEBUG: Added updated work day to target report")
+            
+            // Update current month report if this is the current month
+            let currentMonth = calendar.dateInterval(of: .month, for: Date())?.start ?? Date()
+            if calendar.isDate(workDayMonth, equalTo: currentMonth, toGranularity: .month) {
+                currentMonthReport = targetReport
+                print("DEBUG: Updated current month report")
+            }
+        } else {
+            // Update work day in place (same month)
+            var sourceReport = monthlyReports[sourceReportIndex]
+            sourceReport.workDays[sourceWorkDayIndex] = workDay
+            monthlyReports[sourceReportIndex] = sourceReport
+            print("DEBUG: Updated work day in place")
+
+            // Update current month report if this is the current month
+            let currentMonth = calendar.dateInterval(of: .month, for: Date())?.start ?? Date()
+            if calendar.isDate(workDayMonth, equalTo: currentMonth, toGranularity: .month) {
+                currentMonthReport = sourceReport
+                print("DEBUG: Updated current month report")
+            }
+        }
+
+        saveMonthlyReports()
+        
+        // Aktualizovat currentMonthReport
+        setupCurrentMonth()
+        
+        print("DEBUG: Saved monthly reports")
+    }
+    
+    func updateWorkDay(_ workDay: WorkDay, in report: MonthlyReport) {
+        if let reportIndex = monthlyReports.firstIndex(where: { $0.id == report.id }),
+           let workDayIndex = monthlyReports[reportIndex].workDays.firstIndex(where: { $0.id == workDay.id }) {
+            monthlyReports[reportIndex].workDays[workDayIndex] = workDay
+            
+            // Update current month report if this is the current month
+            let calendar = Calendar.current
+            let currentMonth = calendar.dateInterval(of: .month, for: Date())?.start ?? Date()
+            if calendar.isDate(report.month, equalTo: currentMonth, toGranularity: .month) {
+                currentMonthReport = monthlyReports[reportIndex]
+            }
+            
+            saveMonthlyReports()
+            
+            // Aktualizovat currentMonthReport
+            setupCurrentMonth()
+            
+            // Aktualizovat widget data
+            updateWidgetData()
+        }
+    }
+    
+    func deleteWorkDay(_ workDay: WorkDay, from report: MonthlyReport) {
+        if let reportIndex = monthlyReports.firstIndex(where: { $0.id == report.id }),
+           let workDayIndex = monthlyReports[reportIndex].workDays.firstIndex(where: { $0.id == workDay.id }) {
+            monthlyReports[reportIndex].workDays.remove(at: workDayIndex)
+            
+            // Update current month report if this is the current month
+            let calendar = Calendar.current
+            let currentMonth = calendar.dateInterval(of: .month, for: Date())?.start ?? Date()
+            if calendar.isDate(report.month, equalTo: currentMonth, toGranularity: .month) {
+                currentMonthReport = monthlyReports[reportIndex]
+            }
+            
+            saveMonthlyReports()
+            
+            // Aktualizovat currentMonthReport
+            setupCurrentMonth()
+            
+            // Aktualizovat widget data
+            updateWidgetData()
+        }
+    }
+    
+    
+    func clearAllData() {
+        monthlyReports = []
+        currentMonthReport = nil
+        userDefaults.removeObject(forKey: monthlyReportsKey)
+        setupCurrentMonth()
+    }
+    
+    func generateTestData() {
+        clearAllData()
+        
+        let calendar = Calendar.current
+        let now = Date()
+        
+        print("DEBUG: Starting test data generation")
+        
+        // Generate data for current month and last 3 months (4 months total)
+        for monthOffset in 0...3 {
+            if let monthDate = calendar.date(byAdding: .month, value: -monthOffset, to: now) {
+                let monthStart = calendar.dateInterval(of: .month, for: monthDate)?.start ?? monthDate
+                var monthlyReport = MonthlyReport(month: monthStart)
+                
+                print("DEBUG: Generating data for month \(monthStart)")
+                
+                // Generate work days for this month
+                let range = calendar.range(of: .day, in: .month, for: monthStart) ?? 1..<29
+                for day in range {
+                    if let date = calendar.date(byAdding: .day, value: day - 1, to: monthStart) {
+                        let weekday = calendar.component(.weekday, from: date)
+                        // Only add work days (Monday-Friday)
+                        if weekday != 1 && weekday != 7 { // 1 = Sunday, 7 = Saturday
+                            // Vždy přidat pracovní den (100% šance)
+                            let workDay = generateRealisticWorkDay(for: date)
+                            monthlyReport.workDays.append(workDay)
+                        }
+                    }
+                }
+                
+                // Only add month if it has work days
+                if !monthlyReport.workDays.isEmpty {
+                    monthlyReports.append(monthlyReport)
+                    print("DEBUG: Added month \(monthlyReport.month) with \(monthlyReport.workDays.count) work days")
+                } else {
+                    print("DEBUG: Skipped empty month \(monthlyReport.month)")
+                }
+            }
+        }
+        
+        print("DEBUG: Total reports before save: \(monthlyReports.count)")
+        saveMonthlyReports()
+        
+        // Reload data to ensure consistency - na main thread
+        DispatchQueue.main.async {
+            self.loadMonthlyReports()
+            self.setupCurrentMonth()
+        }
+        
+        print("DEBUG: Test data generation completed. Total reports: \(monthlyReports.count)")
+        if let currentReport = currentMonthReport {
+            print("DEBUG: Current month report has \(currentReport.workDays.count) work days")
+        }
+        
+        // Debug: Zkontrolovat currentMonthStats
+        let stats = currentMonthStats
+        print("DEBUG: Final currentMonthStats - driving: \(stats.drivingHours), working: \(stats.workingHours), km: \(stats.kilometers)")
+    }
+    
+    private func generateRealisticWorkDay(for date: Date) -> WorkDay {
+        // 5% šance na dovolenou, 3% šance na nemoc
+        let randomValue = Double.random(in: 0...1)
+        if randomValue < 0.05 {
+            return WorkDay(
+                date: date,
+                drivingHours: 0.0,
+                workingHours: 0.0,
+                kilometers: 0.0,
+                city: "",
+                notes: "Dovolená",
+                isCompleted: true,
+                dayType: .vacation
+            )
+        } else if randomValue < 0.08 {
+            return WorkDay(
+                date: date,
+                drivingHours: 0.0,
+                workingHours: 0.0,
+                kilometers: 0.0,
+                city: "",
+                notes: "Lékař/Nemoc",
+                isCompleted: true,
+                dayType: .sick
+            )
+        }
+        
+        // Realistické časové rozmezí
+        let totalHours = Double.random(in: 4...15)
+        let drivingRatio = Double.random(in: 0.2...0.6) // 20-60% jízdy
+        let drivingHours = totalHours * drivingRatio
+        let workingHours = totalHours - drivingHours
+        
+        // Realistické kilometry (průměrně 50-200 km denně)
+        let kilometers = Double.random(in: 50...200)
+        
+        // Náhodné město z ČR
+        let cities = [
+            "Praha", "Brno", "Ostrava", "Plzeň", "Liberec", "Olomouc", "Ústí nad Labem",
+            "České Budějovice", "Hradec Králové", "Pardubice", "Zlín", "Havířov",
+            "Karlovy Vary", "Jablonec nad Nisou", "Mladá Boleslav", "Český Krumlov",
+            "Kutná Hora", "Telč", "Třebíč", "Znojmo", "Tábor", "Písek", "Strakonice",
+            "Prachatice", "Vimperk", "Příbram", "Benešov", "Kolín", "Nymburk", "Mělník",
+            "Kralupy nad Vltavou", "Beroun", "Rakovník", "Kladno", "Slaný", "Louny",
+            "Žatec", "Chomutov", "Most", "Litvínov", "Děčín", "Rumburk", "Varnsdorf",
+            "Turnov", "Semily", "Jilemnice", "Trutnov", "Vrchlabí", "Jičín", "Náchod",
+            "Rychnov nad Kněžnou", "Chrudim", "Svitavy", "Ústí nad Orlicí", "Prostějov",
+            "Přerov", "Hranice", "Šumperk", "Zábřeh", "Jeseník", "Opava", "Kravaře",
+            "Hlučín", "Karvina", "Český Těšín", "Frýdek-Místek", "Frýdlant nad Ostravicí",
+            "Kopřivnice", "Nový Jičín", "Bílovec", "Fulnek", "Klimkovice", "Bohumín",
+            "Orlová", "Petřvald", "Rychvald", "Stonava", "Třinec", "Jablunkov"
+        ]
+        
+        let randomCity = cities.randomElement() ?? "Praha"
+        
+        // Náhodné poznámky
+        let notes = [
+            "Oprava strojů", "Údržba zařízení", "Kontrola systému", "Instalace nového vybavení",
+            "Preventivní údržba", "Oprava hydrauliky", "Seřízení motoru", "Kontrola elektroinstalace",
+            "Výměna součástek", "Diagnostika poruchy", "Čištění filtrů", "Kontrola tlaků",
+            "Oprava pneumatiky", "Seřízení brzd", "Kontrola oleje", "Výměna oleje",
+            "Oprava chlazení", "Kontrola baterie", "Seřízení vstřikování", "Oprava převodovky"
+        ]
+        
+        let randomNote = notes.randomElement() ?? ""
+        
+        return WorkDay(
+            date: date,
+            drivingHours: drivingHours,
+            workingHours: workingHours,
+            kilometers: kilometers,
+            city: randomCity,
+            notes: randomNote,
+            isCompleted: true,
+            dayType: .work
+        )
+    }
+    
+    // MARK: - Fuel Management
+    func loadFuelEntries() {
+        if let data = userDefaults.data(forKey: fuelEntriesKey) {
+            if let entries = try? JSONDecoder().decode([FuelEntry].self, from: data) {
+                fuelEntries = entries.sorted { $0.date > $1.date }
+            } else {
+                fuelEntries = []
+            }
+        } else {
+            fuelEntries = []
+        }
+    }
+    
+    nonisolated private func loadFuelEntriesBackground() -> [FuelEntry] {
+        var entries: [FuelEntry] = []
+        DispatchQueue.main.sync {
+            if let data = userDefaults.data(forKey: fuelEntriesKey) {
+                if let decodedEntries = try? JSONDecoder().decode([FuelEntry].self, from: data) {
+                    entries = decodedEntries.sorted { $0.date > $1.date }
+                } else {
+                    entries = []
+                }
+            } else {
+                entries = []
+            }
+        }
+        return entries
+    }
+    
+    func saveFuelEntries() {
+        if let data = try? JSONEncoder().encode(fuelEntries) {
+            userDefaults.set(data, forKey: fuelEntriesKey)
+        }
+    }
+    
+    func addFuelEntry(_ fuelEntry: FuelEntry) {
+        fuelEntries.append(fuelEntry)
+        fuelEntries.sort { $0.date > $1.date }
+        saveFuelEntries()
+    }
+    
+    func updateFuelEntry(_ fuelEntry: FuelEntry) {
+        if let index = fuelEntries.firstIndex(where: { $0.id == fuelEntry.id }) {
+            fuelEntries[index] = fuelEntry
+            fuelEntries.sort { $0.date > $1.date }
+            saveFuelEntries()
+        }
+    }
+    
+    func deleteFuelEntry(_ fuelEntry: FuelEntry) {
+        fuelEntries.removeAll { $0.id == fuelEntry.id }
+        saveFuelEntries()
+    }
+    
+    // Computed properties pro statistiky tankování
+    var totalFuelAmount: Double {
+        fuelEntries.reduce(0) { $0 + $1.fuelAmount }
+    }
+    
+    var totalFuelCost: Double {
+        fuelEntries.reduce(0) { $0 + $1.price }
+    }
+    
+    var averagePricePerLiter: Double {
+        let totalAmount = totalFuelAmount
+        return totalAmount > 0 ? totalFuelCost / totalAmount : 0
+    }
+    
+    var fuelEntriesThisMonth: [FuelEntry] {
+        let calendar = Calendar.current
+        let currentMonth = calendar.dateInterval(of: .month, for: Date())?.start ?? Date()
+        
+        return fuelEntries.filter { entry in
+            calendar.isDate(entry.date, equalTo: currentMonth, toGranularity: .month)
+        }
+    }
+    
+    var monthlyFuelCost: Double {
+        fuelEntriesThisMonth.reduce(0) { $0 + $1.price }
+    }
+    
+    var monthlyFuelAmount: Double {
+        fuelEntriesThisMonth.reduce(0) { $0 + $1.fuelAmount }
+    }
+    
+    // MARK: - Customer Management
+    
+    func loadCustomers() {
+        customers = loadCustomersBackground()
+    }
+    
+    nonisolated private func loadCustomersBackground() -> [Customer] {
+        var customers: [Customer] = []
+        DispatchQueue.main.sync {
+            if let data = userDefaults.data(forKey: customersKey),
+               let decodedCustomers = try? JSONDecoder().decode([Customer].self, from: data) {
+                customers = decodedCustomers
+            }
+        }
+        return customers
+    }
+    
+    func saveCustomers() {
+        guard let data = try? JSONEncoder().encode(customers) else { return }
+        userDefaults.set(data, forKey: customersKey)
+    }
+    
+    func addCustomer(_ customer: Customer) {
+        customers.append(customer)
+        saveCustomers()
+    }
+    
+    func updateCustomer(_ customer: Customer) {
+        if let index = customers.firstIndex(where: { $0.id == customer.id }) {
+            customers[index] = customer
+            saveCustomers()
+        }
+    }
+    
+    func deleteCustomer(_ customer: Customer) {
+        customers.removeAll { $0.id == customer.id }
+        saveCustomers()
+    }
+    
+    // MARK: - Notification Support
+    
+    func checkIfWorkDayCompleted(for date: Date) -> Bool {
+        let calendar = Calendar.current
+        
+        // Kontrola, zda je datum pracovní den
+        let weekday = calendar.component(.weekday, from: date)
+        guard weekday != 1 && weekday != 7 else { return true } // Víkendy
+        
+        // Kontrola, zda existuje záznam pro dané datum
+        let baseReports = monthlyReports.filter { !$0.workDays.isEmpty }
+        
+        return baseReports.contains { report in
+            report.workDays.contains { workDay in
+                calendar.isDate(workDay.date, inSameDayAs: date)
+            }
+        }
+    }
+    
+    func scheduleNotificationsIfNeeded() {
+        Task {
+            await notificationManager.requestPermission()
+            if notificationManager.isAuthorized {
+                notificationManager.scheduleDailyReminder()
+            }
+        }
+    }
+    
+    // MARK: - Widget Data Management
+    func updateWidgetData() {
+        guard let currentReport = currentMonthReport else { 
+            print("DEBUG: updateWidgetData - No current month report")
+            return 
+        }
+        
+        let totalHours = currentReport.totalHours
+        let totalKilometers = currentReport.totalKilometers
+        let fuelCosts = monthlyFuelCost  // Použít stejnou hodnotu jako v aplikaci
+        
+        print("DEBUG: updateWidgetData - Saving data:")
+        print("  - Total Hours: \(totalHours)")
+        print("  - Total Kilometers: \(totalKilometers)")
+        print("  - Fuel Costs: \(fuelCosts)")
+        
+        widgetDataManager.saveWidgetData(
+            totalHours: totalHours,
+            totalKilometers: totalKilometers,
+            totalEarnings: fuelCosts  // Změněno z calculateEarnings na fuelCosts
+        )
+        
+        print("DEBUG: updateWidgetData - Data saved successfully")
+    }
+} 
