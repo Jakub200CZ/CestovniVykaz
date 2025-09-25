@@ -10,7 +10,6 @@ import SwiftUI
 struct SettingsView: View {
     @ObservedObject var notificationManager = NotificationManager.shared
     @ObservedObject var localizationManager = LocalizationManager.shared
-    @State private var animateContent = false
     @AppStorage("notificationsEnabled") private var notificationsEnabled = true
     
     var body: some View {
@@ -100,9 +99,6 @@ struct SettingsView: View {
                         }
                     }
                 }
-                .opacity(animateContent ? 1.0 : 0.0)
-                .offset(y: animateContent ? 0 : 20)
-                .animation(.easeOut(duration: 0.6).delay(0.2), value: animateContent)
                 
                 Section(localizationManager.localizedString("language")) {
                     ForEach(Language.allCases, id: \.self) { language in
@@ -131,9 +127,6 @@ struct SettingsView: View {
                         .buttonStyle(PlainButtonStyle())
                     }
                 }
-                .opacity(animateContent ? 1.0 : 0.0)
-                .offset(y: animateContent ? 0 : 20)
-                .animation(.easeOut(duration: 0.6).delay(0.3), value: animateContent)
                 
                 Section(localizationManager.localizedString("appInfo")) {
                     HStack {
@@ -154,17 +147,9 @@ struct SettingsView: View {
                         Spacer()
                     }
                 }
-                .opacity(animateContent ? 1.0 : 0.0)
-                .offset(y: animateContent ? 0 : 20)
-                .animation(.easeOut(duration: 0.6).delay(0.4), value: animateContent)
             }
             .navigationTitle(localizationManager.localizedString("settings"))
             .navigationBarTitleDisplayMode(.inline)
-            .onAppear {
-                withAnimation(.easeOut(duration: 0.8)) {
-                    animateContent = true
-                }
-            }
         }
     }
 }

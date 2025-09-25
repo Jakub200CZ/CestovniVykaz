@@ -13,7 +13,6 @@ struct StatisticsView: View {
     @ObservedObject var localizationManager = LocalizationManager.shared
     @Binding var selectedTab: Int
     @State private var selectedTimeRange: TimeRange = .allTime
-    @State private var animateContent = false
     
     enum TimeRange: String, CaseIterable {
         case currentMonth = "Tento měsíc"
@@ -97,49 +96,31 @@ struct StatisticsView: View {
                         Text("\(localizationManager.localizedString("periodStats")) \(selectedTimeRange.rawValue.lowercased())")
                             .font(.system(size: 18, weight: .semibold))
                             .foregroundStyle(.primary)
-                            .opacity(animateContent ? 1.0 : 0.0)
-                            .offset(y: animateContent ? 0 : 20)
-                            .animation(.easeOut(duration: 0.6), value: animateContent)
                         
-                        HStack(spacing: 8) {
-                            OverallStatCard(
+                        HStack(spacing: DesignSystem.Spacing.sm) {
+                            StatCard(
                                 title: "Celkem hodin",
                                 value: String(format: "%.1f", periodStats.totalHours),
                                 icon: "clock.fill",
-                                color: .blue
+                                color: DesignSystem.Colors.primary
                             )
-                            .opacity(animateContent ? 1.0 : 0.0)
-                            .offset(x: animateContent ? 0 : -30)
-                            .animation(.easeOut(duration: 0.6).delay(0.2), value: animateContent)
                             
-                            OverallStatCard(
+                            StatCard(
                                 title: "Celkem km",
                                 value: String(format: "%.0f", periodStats.totalKilometers),
                                 icon: "speedometer",
-                                color: .green
+                                color: DesignSystem.Colors.secondary
                             )
-                            .opacity(animateContent ? 1.0 : 0.0)
-                            .offset(x: animateContent ? 0 : 0)
-                            .animation(.easeOut(duration: 0.6).delay(0.4), value: animateContent)
                             
-                            OverallStatCard(
+                            StatCard(
                                 title: "Výdaje za palivo",
                                 value: String(format: "%.0f Kč", periodStats.totalFuelCost),
                                 icon: "fuelpump.fill",
-                                color: .orange
+                                color: DesignSystem.Colors.accent
                             )
-                            .opacity(animateContent ? 1.0 : 0.0)
-                            .offset(x: animateContent ? 0 : 30)
-                            .animation(.easeOut(duration: 0.6).delay(0.6), value: animateContent)
                         }
                     }
-                    .padding(.horizontal, 16)
-                    .padding(.vertical, 20)
-                    .background(
-                        RoundedRectangle(cornerRadius: 16)
-                            .fill(.regularMaterial)
-                            .shadow(color: .black.opacity(0.05), radius: 8, x: 0, y: 4)
-                    )
+                    .cardStyleSecondary()
                     .padding(.horizontal)
                     
                     // Time Range Selector
@@ -158,17 +139,10 @@ struct StatisticsView: View {
                             .foregroundStyle(.primary)
                         
                         if filteredReports.isEmpty {
-                            VStack(spacing: 8) {
-                                Image(systemName: "chart.bar")
-                                    .font(.system(size: 30))
-                                    .foregroundStyle(.secondary)
-                                
-                                Text(localizationManager.localizedString("noDataForPeriod"))
-                                    .font(.subheadline)
-                                    .foregroundStyle(.secondary)
-                                    .italic()
-                            }
-                            .padding(.vertical, 20)
+                            EmptyState(
+                                icon: "chart.bar",
+                                title: localizationManager.localizedString("noDataForPeriod")
+                            )
                         } else {
                             LazyVStack(spacing: 6) {
                                 ForEach(filteredReports.sorted { $0.month > $1.month }, id: \.month) { report in
@@ -177,66 +151,17 @@ struct StatisticsView: View {
                             }
                         }
                     }
-                    .padding(.horizontal, 16)
-                    .padding(.vertical, 20)
-                    .background(
-                        RoundedRectangle(cornerRadius: 16)
-                            .fill(.regularMaterial)
-                            .shadow(color: .black.opacity(0.05), radius: 8, x: 0, y: 4)
-                    )
+                    .cardStyleSecondary()
                     .padding(.horizontal)
                 }
                 .padding(.vertical)
             }
             .navigationTitle("Statistiky")
             .navigationBarTitleDisplayMode(.inline)
-            .onAppear {
-                withAnimation(.easeOut(duration: 0.8)) {
-                    animateContent = true
-                }
-            }
         }
     }
 }
 
-struct OverallStatCard: View {
-    let title: String
-    let value: String
-    let icon: String
-    let color: Color
-    
-    var body: some View {
-        VStack(spacing: 6) {
-            Image(systemName: icon)
-                .font(.system(size: 20, weight: .medium))
-                .foregroundStyle(color)
-            
-            Text(value)
-                .font(.system(size: 18, weight: .bold, design: .rounded))
-                .foregroundStyle(.primary)
-                .minimumScaleFactor(0.8)
-                .lineLimit(1)
-            
-            Text(title)
-                .font(.system(size: 11, weight: .medium))
-                .foregroundStyle(.secondary)
-                .multilineTextAlignment(.center)
-                .lineLimit(2)
-        }
-        .frame(maxWidth: .infinity)
-        .frame(height: 80)
-        .padding(.horizontal, 8)
-        .padding(.vertical, 12)
-        .background(
-            RoundedRectangle(cornerRadius: 12)
-                .fill(color.opacity(0.12))
-                .overlay(
-                    RoundedRectangle(cornerRadius: 12)
-                        .stroke(color.opacity(0.3), lineWidth: 1)
-                )
-        )
-    }
-}
 
 struct MonthlyStatRow: View {
     let report: MonthlyReport

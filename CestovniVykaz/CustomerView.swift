@@ -70,30 +70,14 @@ struct CustomerView: View {
                 
                 // Customer list
                 if filteredCustomers.isEmpty {
-                    VStack(spacing: 16) {
-                        Image(systemName: "crane.fill")
-                            .font(.system(size: 50))
-                            .foregroundStyle(.secondary)
-                        
-                        Text(searchText.isEmpty ? localizationManager.localizedString("noCustomers") : localizationManager.localizedString("noCustomers"))
-                            .font(.headline)
-                            .foregroundStyle(.secondary)
-                        
-                        if searchText.isEmpty {
-                            Text(localizationManager.localizedString("startAddingCustomers"))
-                                .font(.subheadline)
-                                .foregroundStyle(.secondary)
-                                .multilineTextAlignment(.center)
-                        } else {
-                            Text(localizationManager.localizedString("tryDifferentSearch"))
-                                .font(.subheadline)
-                                .foregroundStyle(.secondary)
-                                .multilineTextAlignment(.center)
-                        }
-                    }
+                    EmptyState(
+                        icon: "person.2",
+                        title: searchText.isEmpty ? localizationManager.localizedString("noCustomers") : localizationManager.localizedString("noCustomers"),
+                        subtitle: searchText.isEmpty ? localizationManager.localizedString("startAddingCustomers") : localizationManager.localizedString("tryDifferentSearch")
+                    )
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
                     .opacity(animateContent ? 1.0 : 0.0)
-                    .animation(.easeOut(duration: 0.6), value: animateContent)
+                    .animation(DesignSystem.Animation.slow, value: animateContent)
                 } else {
                     List {
                         ForEach(filteredCustomers) { customer in

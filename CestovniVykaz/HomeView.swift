@@ -11,8 +11,6 @@ struct HomeView: View {
     @ObservedObject var viewModel: MechanicViewModel
     @ObservedObject var localizationManager = LocalizationManager.shared
     @Binding var selectedTab: Int
-    @State private var isContentLoaded = false
-    @State private var animateStats = false
     @State private var showingSettings = false
     
     // Computed properties pro aktuální měsíc - stejná logika jako ve StatisticsView
@@ -147,8 +145,6 @@ struct HomeView: View {
                                     )
                             }
                             .offset(x: 28, y: -28)
-                            .scaleEffect(isContentLoaded ? 1.0 : 0.0)
-                            .animation(.spring(response: 0.8, dampingFraction: 0.6).delay(0.3), value: isContentLoaded)
                             
                             // Dekorativní tečky kolem loga
                             ForEach(0..<8, id: \.self) { index in
@@ -159,17 +155,8 @@ struct HomeView: View {
                                         x: cos(Double(index) * .pi / 4) * 45,
                                         y: sin(Double(index) * .pi / 4) * 45
                                     )
-                                    .opacity(isContentLoaded ? 1.0 : 0.0)
-                                    .animation(
-                                        .easeOut(duration: 0.5)
-                                        .delay(0.5 + Double(index) * 0.05),
-                                        value: isContentLoaded
-                                    )
                             }
                         }
-                        .scaleEffect(isContentLoaded ? 1.0 : 0.3)
-                        .opacity(isContentLoaded ? 1.0 : 0.0)
-                        .animation(.spring(response: 0.8, dampingFraction: 0.7), value: isContentLoaded)
                         
                         VStack(spacing: 4) {
                             Text(localizationManager.localizedString("home"))
@@ -182,17 +169,11 @@ struct HomeView: View {
                                         endPoint: .bottomTrailing
                                     )
                                 )
-                                .opacity(isContentLoaded ? 1.0 : 0.0)
-                                .offset(y: isContentLoaded ? 0 : 20)
-                                .animation(.easeOut(duration: 0.8).delay(0.2), value: isContentLoaded)
                             
                             Text(localizationManager.localizedString("appDescription"))
                                 .font(.subheadline)
                                 .fontWeight(.medium)
                                 .foregroundStyle(.secondary)
-                                .opacity(isContentLoaded ? 1.0 : 0.0)
-                                .offset(y: isContentLoaded ? 0 : 20)
-                                .animation(.easeOut(duration: 0.8).delay(0.4), value: isContentLoaded)
                         }
                     }
                     .padding(.top, 20)
@@ -207,36 +188,27 @@ struct HomeView: View {
                             Spacer()
                         }
                         
-                        HStack(spacing: 8) {
-                            HomeStatCard(
+                        HStack(spacing: DesignSystem.Spacing.sm) {
+                            StatCard(
                                 title: localizationManager.localizedString("totalHours"),
                                 value: String(format: "%.1f", currentMonthData.totalHours),
                                 icon: "clock.fill",
-                                color: .blue
+                                color: DesignSystem.Colors.primary
                             )
-                            .opacity(animateStats ? 1.0 : 0.0)
-                            .offset(x: animateStats ? 0 : -30)
-                            .animation(.easeOut(duration: 0.6).delay(0.6), value: animateStats)
                             
-                            HomeStatCard(
+                            StatCard(
                                 title: localizationManager.localizedString("kilometers"),
                                 value: String(format: "%.0f", currentMonthData.totalKilometers),
                                 icon: "speedometer",
-                                color: .green
+                                color: DesignSystem.Colors.secondary
                             )
-                            .opacity(animateStats ? 1.0 : 0.0)
-                            .offset(x: animateStats ? 0 : 0)
-                            .animation(.easeOut(duration: 0.6).delay(0.8), value: animateStats)
                             
-                            HomeStatCard(
+                            StatCard(
                                 title: localizationManager.localizedString("fuelCosts"),
                                 value: String(format: "%.0f Kč", viewModel.monthlyFuelCost),
                                 icon: "fuelpump.fill",
-                                color: .orange
+                                color: DesignSystem.Colors.accent
                             )
-                            .opacity(animateStats ? 1.0 : 0.0)
-                            .offset(x: animateStats ? 0 : 30)
-                            .animation(.easeOut(duration: 0.6).delay(1.0), value: animateStats)
                         }
                         
 
@@ -251,9 +223,7 @@ struct HomeView: View {
                                 }
                             }
                         }
-                    .padding()
-                    .background(.regularMaterial)
-                    .clipShape(RoundedRectangle(cornerRadius: 12))
+                    .cardStyleSecondary()
                     .padding(.horizontal)
                     
                     // Quick Actions
@@ -262,53 +232,49 @@ struct HomeView: View {
                             .font(.headline)
                             .foregroundStyle(.primary)
                         
-                        VStack(spacing: 12) {
-                            QuickActionButton(
+                        VStack(spacing: DesignSystem.Spacing.md) {
+                            ActionButton(
                                 title: localizationManager.localizedString("addRecord"),
                                 subtitle: localizationManager.localizedString("addRecordForDay"),
                                 icon: "plus.circle.fill",
-                                color: .blue
+                                color: DesignSystem.Colors.primary
                             ) {
                                 selectedTab = 1
                             }
                             
-                            QuickActionButton(
+                            ActionButton(
                                 title: localizationManager.localizedString("history"),
                                 subtitle: localizationManager.localizedString("viewPreviousMonths"),
                                 icon: "clock.fill",
-                                color: .green
+                                color: DesignSystem.Colors.secondary
                             ) {
                                 selectedTab = 2
                             }
                             
-                            QuickActionButton(
+                            ActionButton(
                                 title: localizationManager.localizedString("fuel"),
                                 subtitle: localizationManager.localizedString("fuelTracking"),
                                 icon: "fuelpump.fill",
-                                color: .purple
+                                color: DesignSystem.Colors.accent
                             ) {
                                 selectedTab = 3
                             }
                             
                             NavigationLink(destination: StatisticsView(viewModel: viewModel, selectedTab: $selectedTab)) {
-                                QuickActionButtonContent(
+                                ActionButton(
                                     title: localizationManager.localizedString("statistics"),
                                     subtitle: localizationManager.localizedString("hoursKilometersOverview"),
                                     icon: "chart.bar.fill",
-                                    color: .orange
-                                )
+                                    color: DesignSystem.Colors.accent
+                                ) {
+                                    // Empty action for NavigationLink
+                                }
                             }
                             .buttonStyle(PlainButtonStyle())
                             
                         }
                     }
-                    .padding(.horizontal, 16)
-                    .padding(.vertical, 20)
-                    .background(
-                        RoundedRectangle(cornerRadius: 16)
-                            .fill(.regularMaterial)
-                            .shadow(color: .black.opacity(0.05), radius: 8, x: 0, y: 4)
-                    )
+                    .cardStyleSecondary()
                     .padding(.horizontal)
                     
                     Spacer(minLength: 20)
@@ -330,135 +296,10 @@ struct HomeView: View {
             .sheet(isPresented: $showingSettings) {
                 SettingsView()
             }
-            .onAppear {
-                withAnimation {
-                    isContentLoaded = true
-                }
-                
-                DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
-                    withAnimation {
-                        animateStats = true
-                    }
-                }
-            }
         }
     }
 }
 
-struct HomeStatCard: View {
-    let title: String
-    let value: String
-    let icon: String
-    let color: Color
-    
-    var body: some View {
-        VStack(spacing: 6) {
-            Image(systemName: icon)
-                .font(.system(size: 20, weight: .medium))
-                .foregroundStyle(color)
-            
-            Text(value)
-                .font(.system(size: 18, weight: .bold, design: .rounded))
-                .foregroundStyle(.primary)
-                .minimumScaleFactor(0.8)
-                .lineLimit(1)
-            
-            Text(title)
-                .font(.system(size: 11, weight: .medium))
-                .foregroundStyle(.secondary)
-                .multilineTextAlignment(.center)
-                .lineLimit(2)
-        }
-        .frame(maxWidth: .infinity)
-        .frame(height: 80)
-        .padding(.horizontal, 8)
-        .padding(.vertical, 12)
-        .background(
-            RoundedRectangle(cornerRadius: 12)
-                .fill(color.opacity(0.12))
-                .overlay(
-                    RoundedRectangle(cornerRadius: 12)
-                        .stroke(color.opacity(0.3), lineWidth: 1)
-                )
-        )
-    }
-}
-
-struct QuickActionButton: View {
-    let title: String
-    let subtitle: String
-    let icon: String
-    let color: Color
-    let action: () -> Void
-    
-    var body: some View {
-        Button(action: action) {
-            HStack(spacing: 12) {
-                Image(systemName: icon)
-                    .font(.title2)
-                    .foregroundStyle(color)
-                    .frame(width: 30)
-                
-                VStack(alignment: .leading, spacing: 2) {
-                    Text(title)
-                        .font(.subheadline)
-                        .fontWeight(.medium)
-                        .foregroundStyle(.primary)
-                    
-                    Text(subtitle)
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                }
-                
-                Spacer()
-                
-                Image(systemName: "chevron.right")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-            }
-            .padding()
-            .background(.regularMaterial)
-            .clipShape(RoundedRectangle(cornerRadius: 8))
-        }
-        .buttonStyle(PlainButtonStyle())
-    }
-}
-
-struct QuickActionButtonContent: View {
-    let title: String
-    let subtitle: String
-    let icon: String
-    let color: Color
-    
-    var body: some View {
-        HStack(spacing: 12) {
-            Image(systemName: icon)
-                .font(.title2)
-                .foregroundStyle(color)
-                .frame(width: 30)
-            
-            VStack(alignment: .leading, spacing: 2) {
-                Text(title)
-                    .font(.subheadline)
-                    .fontWeight(.medium)
-                    .foregroundStyle(.primary)
-                
-                Text(subtitle)
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-            }
-            
-            Spacer()
-            
-            Image(systemName: "chevron.right")
-                .font(.caption)
-                .foregroundStyle(.secondary)
-        }
-        .padding()
-        .background(.regularMaterial)
-        .clipShape(RoundedRectangle(cornerRadius: 8))
-    }
-}
 
 #Preview {
     HomeView(viewModel: MechanicViewModel(), selectedTab: .constant(0))

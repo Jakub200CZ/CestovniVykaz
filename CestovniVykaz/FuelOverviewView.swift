@@ -60,22 +60,11 @@ struct FuelOverviewView: View {
                         }
                         
                         if lastThreeEntries.isEmpty {
-                            VStack(spacing: 12) {
-                                Image(systemName: "fuelpump")
-                                    .font(.system(size: 40))
-                                    .foregroundStyle(.secondary)
-                                
-                                Text(localizationManager.localizedString("noFuelEntries"))
-                                    .font(.subheadline)
-                                    .foregroundStyle(.secondary)
-                                
-                                Text(localizationManager.localizedString("startAddingFuel"))
-                                    .font(.caption)
-                                    .foregroundStyle(.secondary)
-                                    .multilineTextAlignment(.center)
-                            }
-                            .frame(maxWidth: .infinity)
-                            .padding(.vertical, 20)
+                            EmptyState(
+                                icon: "fuelpump",
+                                title: localizationManager.localizedString("noFuelEntries"),
+                                subtitle: localizationManager.localizedString("startAddingFuel")
+                            )
                         } else {
                             List {
                                 ForEach(lastThreeEntries) { entry in
@@ -93,9 +82,7 @@ struct FuelOverviewView: View {
                             .frame(height: CGFloat(lastThreeEntries.count * 80 + 20))
                         }
                     }
-                    .padding()
-                    .background(.regularMaterial)
-                    .clipShape(RoundedRectangle(cornerRadius: 12))
+                    .cardStyleSecondary()
                     .padding(.horizontal)
                     
                     // Calendar section
@@ -109,9 +96,7 @@ struct FuelOverviewView: View {
                             fuelEntries: lastThreeMonthsEntries,
                             selectedDate: $selectedDate
                         )
-                        .padding()
-                        .background(.regularMaterial)
-                        .clipShape(RoundedRectangle(cornerRadius: 12))
+                        .cardStyleSecondary()
                         .padding(.horizontal)
                         .opacity(animateContent ? 1.0 : 0.0)
                         .offset(y: animateContent ? 0 : 20)
@@ -492,9 +477,7 @@ struct FuelEntryDetailCard: View {
                     }
                 }
             }
-            .padding()
-            .background(.regularMaterial)
-            .clipShape(RoundedRectangle(cornerRadius: 12))
+            .cardStyleSecondary()
     }
 }
 

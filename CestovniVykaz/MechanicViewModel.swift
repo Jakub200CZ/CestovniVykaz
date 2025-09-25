@@ -29,22 +29,12 @@ class MechanicViewModel: ObservableObject {
     private let customersKey = "customers"
     
     init() {
-        // Načíst data na pozadí
-        DispatchQueue.global(qos: .userInitiated).async {
-            // Načíst data na pozadí
-            let reports = self.loadMonthlyReportsBackground()
-            let fuelEntries = self.loadFuelEntriesBackground()
-            let customers = self.loadCustomersBackground()
-            
-            // Aktualizovat UI na main thread
-            DispatchQueue.main.async {
-                self.monthlyReports = reports
-                self.fuelEntries = fuelEntries
-                self.customers = customers
-                self.setupCurrentMonth()
-                self.updateWidgetData()
-            }
-        }
+        // Načíst data přímo na main thread pro rychlejší start
+        monthlyReports = loadMonthlyReportsBackground()
+        fuelEntries = loadFuelEntriesBackground()
+        customers = loadCustomersBackground()
+        setupCurrentMonth()
+        updateWidgetData()
     }
     
     func loadMonthlyReports() {
@@ -61,21 +51,13 @@ class MechanicViewModel: ObservableObject {
     
     // Načítání dat na pozadí bez aktualizace @Published properties
     nonisolated private func loadMonthlyReportsBackground() -> [MonthlyReport] {
-        // Načíst data na main thread, protože UserDefaults je main actor isolated
-        var reports: [MonthlyReport] = []
-        DispatchQueue.main.sync {
-            if let data = userDefaults.data(forKey: monthlyReportsKey) {
-                if let decodedReports = try? JSONDecoder().decode([MonthlyReport].self, from: data) {
-                    reports = decodedReports
-                } else {
-                    reports = []
-                }
-            } else {
-                reports = []
+        let localUserDefaults = UserDefaults.standard
+        if let data = localUserDefaults.data(forKey: monthlyReportsKey) {
+            if let decodedReports = try? JSONDecoder().decode([MonthlyReport].self, from: data) {
+                return decodedReports
             }
         }
-        
-        return reports
+        return []
     }
     
     func saveMonthlyReports() {
@@ -439,19 +421,13 @@ class MechanicViewModel: ObservableObject {
     }
     
     nonisolated private func loadFuelEntriesBackground() -> [FuelEntry] {
-        var entries: [FuelEntry] = []
-        DispatchQueue.main.sync {
-            if let data = userDefaults.data(forKey: fuelEntriesKey) {
-                if let decodedEntries = try? JSONDecoder().decode([FuelEntry].self, from: data) {
-                    entries = decodedEntries.sorted { $0.date > $1.date }
-                } else {
-                    entries = []
-                }
-            } else {
-                entries = []
+        let localUserDefaults = UserDefaults.standard
+        if let data = localUserDefaults.data(forKey: fuelEntriesKey) {
+            if let decodedEntries = try? JSONDecoder().decode([FuelEntry].self, from: data) {
+                return decodedEntries.sorted { $0.date > $1.date }
             }
         }
-        return entries
+        return []
     }
     
     func saveFuelEntries() {
@@ -517,14 +493,12 @@ class MechanicViewModel: ObservableObject {
     }
     
     nonisolated private func loadCustomersBackground() -> [Customer] {
-        var customers: [Customer] = []
-        DispatchQueue.main.sync {
-            if let data = userDefaults.data(forKey: customersKey),
-               let decodedCustomers = try? JSONDecoder().decode([Customer].self, from: data) {
-                customers = decodedCustomers
-            }
+        let localUserDefaults = UserDefaults.standard
+        if let data = localUserDefaults.data(forKey: customersKey),
+           let decodedCustomers = try? JSONDecoder().decode([Customer].self, from: data) {
+            return decodedCustomers
         }
-        return customers
+        return []
     }
     
     func saveCustomers() {
