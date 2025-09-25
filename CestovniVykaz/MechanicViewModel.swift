@@ -48,46 +48,29 @@ class MechanicViewModel: ObservableObject {
     }
     
     func loadMonthlyReports() {
-        print("DEBUG: loadMonthlyReports - Starting to load data")
         if let data = userDefaults.data(forKey: monthlyReportsKey) {
-            print("DEBUG: loadMonthlyReports - Found data in UserDefaults")
             if let reports = try? JSONDecoder().decode([MonthlyReport].self, from: data) {
                 monthlyReports = reports
-                print("DEBUG: loadMonthlyReports - Successfully loaded \(reports.count) monthly reports")
-                for report in reports {
-                    print("DEBUG: loadMonthlyReports - Report for \(report.month) has \(report.workDays.count) work days")
-                }
             } else {
-                print("DEBUG: loadMonthlyReports - Failed to decode data")
                 monthlyReports = []
             }
         } else {
-            print("DEBUG: loadMonthlyReports - No data found in UserDefaults")
             monthlyReports = []
         }
     }
     
     // Načítání dat na pozadí bez aktualizace @Published properties
     nonisolated private func loadMonthlyReportsBackground() -> [MonthlyReport] {
-        print("DEBUG: loadMonthlyReportsBackground - Starting to load data")
-        
         // Načíst data na main thread, protože UserDefaults je main actor isolated
         var reports: [MonthlyReport] = []
         DispatchQueue.main.sync {
             if let data = userDefaults.data(forKey: monthlyReportsKey) {
-                print("DEBUG: loadMonthlyReportsBackground - Found data in UserDefaults")
                 if let decodedReports = try? JSONDecoder().decode([MonthlyReport].self, from: data) {
                     reports = decodedReports
-                    print("DEBUG: loadMonthlyReportsBackground - Successfully loaded \(reports.count) monthly reports")
-                    for report in reports {
-                        print("DEBUG: loadMonthlyReportsBackground - Report for \(report.month) has \(report.workDays.count) work days")
-                    }
                 } else {
-                    print("DEBUG: loadMonthlyReportsBackground - Failed to decode data")
                     reports = []
                 }
             } else {
-                print("DEBUG: loadMonthlyReportsBackground - No data found in UserDefaults")
                 reports = []
             }
         }
@@ -105,28 +88,17 @@ class MechanicViewModel: ObservableObject {
         let calendar = Calendar.current
         let currentMonth = calendar.dateInterval(of: .month, for: Date())?.start ?? Date()
         
-        print("DEBUG: setupCurrentMonth - Current month: \(currentMonth)")
-        print("DEBUG: setupCurrentMonth - Total reports: \(monthlyReports.count)")
-        
         // Najít existující report pro aktuální měsíc
         if let existingReport = monthlyReports.first(where: { report in
             calendar.isDate(report.month, equalTo: currentMonth, toGranularity: .month)
         }) {
             currentMonthReport = existingReport
-            print("DEBUG: Found existing current month report with \(existingReport.workDays.count) work days")
         } else {
             // Vytvořit nový report pouze pokud neexistuje žádný pro aktuální měsíc
             let newReport = MonthlyReport(month: currentMonth)
             currentMonthReport = newReport
             monthlyReports.append(newReport)
             saveMonthlyReports()
-            print("DEBUG: Created new empty current month report")
-        }
-        
-        // Debug: Zkontrolovat všechny reporty
-        print("DEBUG: All reports:")
-        for (index, report) in monthlyReports.enumerated() {
-            print("DEBUG: Report \(index): \(report.month) has \(report.workDays.count) work days")
         }
     }
     
@@ -134,18 +106,11 @@ class MechanicViewModel: ObservableObject {
         let calendar = Calendar.current
         let currentMonth = calendar.dateInterval(of: .month, for: Date())?.start ?? Date()
         
-        print("DEBUG: currentMonthStats - Current month: \(currentMonth)")
-        print("DEBUG: currentMonthStats - Total reports: \(monthlyReports.count)")
-        print("DEBUG: currentMonthStats - currentMonthReport: \(currentMonthReport?.workDays.count ?? 0) work days")
-        
         // Použít currentMonthReport pokud existuje
         if let currentReport = currentMonthReport {
             let totalDrivingHours = currentReport.workDays.reduce(0) { $0 + $1.drivingHours }
             let totalWorkingHours = currentReport.workDays.reduce(0) { $0 + $1.workingHours }
             let totalKilometers = currentReport.workDays.reduce(0) { $0 + $1.kilometers }
-            
-            print("DEBUG: currentMonthStats - Using currentMonthReport with \(currentReport.workDays.count) work days")
-            print("DEBUG: currentMonthStats - Stats: driving=\(totalDrivingHours), working=\(totalWorkingHours), km=\(totalKilometers)")
             
             return (totalDrivingHours, totalWorkingHours, totalKilometers)
         }
@@ -158,13 +123,9 @@ class MechanicViewModel: ObservableObject {
             let totalWorkingHours = currentReport.workDays.reduce(0) { $0 + $1.workingHours }
             let totalKilometers = currentReport.workDays.reduce(0) { $0 + $1.kilometers }
             
-            print("DEBUG: currentMonthStats - Found current report in monthlyReports with \(currentReport.workDays.count) work days")
-            print("DEBUG: currentMonthStats - Stats: driving=\(totalDrivingHours), working=\(totalWorkingHours), km=\(totalKilometers)")
-            
             return (totalDrivingHours, totalWorkingHours, totalKilometers)
         }
         
-        print("DEBUG: currentMonthStats - No current report found")
         return (0, 0, 0)
     }
     
@@ -210,9 +171,6 @@ class MechanicViewModel: ObservableObject {
         let calendar = Calendar.current
         let workDayMonth = calendar.dateInterval(of: .month, for: workDay.date)?.start ?? workDay.date
 
-        print("DEBUG: Updating work day for date: \(workDay.date)")
-        print("DEBUG: Work day month: \(workDayMonth)")
-        print("DEBUG: Work day ID: \(workDay.id)")
 
         // First, find the work day in any report by its ID
         var foundWorkDay: WorkDay?
@@ -224,7 +182,6 @@ class MechanicViewModel: ObservableObject {
                 foundWorkDay = monthlyReport.workDays[workDayIndex]
                 sourceReportIndex = reportIndex
                 sourceWorkDayIndex = workDayIndex
-                print("DEBUG: Found work day in report \(reportIndex) at index \(workDayIndex)")
                 break
             }
         }
@@ -232,7 +189,6 @@ class MechanicViewModel: ObservableObject {
         guard let foundWorkDay = foundWorkDay,
               let sourceReportIndex = sourceReportIndex,
               let sourceWorkDayIndex = sourceWorkDayIndex else {
-            print("DEBUG: Work day not found in any report")
             return
         }
 
@@ -241,9 +197,6 @@ class MechanicViewModel: ObservableObject {
         let newMonth = calendar.dateInterval(of: .month, for: workDay.date)?.start ?? workDay.date
         let monthChanged = !calendar.isDate(originalMonth, equalTo: newMonth, toGranularity: .month)
 
-        print("DEBUG: Original month: \(originalMonth)")
-        print("DEBUG: New month: \(newMonth)")
-        print("DEBUG: Month changed: \(monthChanged)")
 
         if monthChanged {
             // Remove work day from source report
@@ -253,12 +206,9 @@ class MechanicViewModel: ObservableObject {
             // Remove empty month
             if sourceReport.workDays.isEmpty {
                 monthlyReports.remove(at: sourceReportIndex)
-                print("DEBUG: Removed empty month")
             } else {
                 monthlyReports[sourceReportIndex] = sourceReport
-                print("DEBUG: Updated source report")
             }
-            print("DEBUG: Removed work day from source report")
 
             // Find or create target report for the new month
             var targetReport: MonthlyReport
@@ -269,37 +219,30 @@ class MechanicViewModel: ObservableObject {
             }) {
                 targetReport = monthlyReports[existingTargetIndex]
                 targetReportIndex = existingTargetIndex
-                print("DEBUG: Found existing target report at index \(existingTargetIndex)")
             } else {
                 targetReport = MonthlyReport(month: workDayMonth)
                 monthlyReports.append(targetReport)
                 targetReportIndex = monthlyReports.count - 1
-                print("DEBUG: Created new target report for month \(workDayMonth)")
             }
 
             // Add updated work day to target report
             targetReport.workDays.append(workDay)
             monthlyReports[targetReportIndex] = targetReport
-            print("DEBUG: Added updated work day to target report")
             
             // Update current month report if this is the current month
             let currentMonth = calendar.dateInterval(of: .month, for: Date())?.start ?? Date()
             if calendar.isDate(workDayMonth, equalTo: currentMonth, toGranularity: .month) {
                 currentMonthReport = targetReport
-                print("DEBUG: Updated current month report")
             }
         } else {
             // Update work day in place (same month)
             var sourceReport = monthlyReports[sourceReportIndex]
             sourceReport.workDays[sourceWorkDayIndex] = workDay
             monthlyReports[sourceReportIndex] = sourceReport
-            print("DEBUG: Updated work day in place")
-
             // Update current month report if this is the current month
             let currentMonth = calendar.dateInterval(of: .month, for: Date())?.start ?? Date()
             if calendar.isDate(workDayMonth, equalTo: currentMonth, toGranularity: .month) {
                 currentMonthReport = sourceReport
-                print("DEBUG: Updated current month report")
             }
         }
 
@@ -307,8 +250,6 @@ class MechanicViewModel: ObservableObject {
         
         // Aktualizovat currentMonthReport
         setupCurrentMonth()
-        
-        print("DEBUG: Saved monthly reports")
     }
     
     func updateWorkDay(_ workDay: WorkDay, in report: MonthlyReport) {
@@ -369,15 +310,11 @@ class MechanicViewModel: ObservableObject {
         let calendar = Calendar.current
         let now = Date()
         
-        print("DEBUG: Starting test data generation")
-        
         // Generate data for current month and last 3 months (4 months total)
         for monthOffset in 0...3 {
             if let monthDate = calendar.date(byAdding: .month, value: -monthOffset, to: now) {
                 let monthStart = calendar.dateInterval(of: .month, for: monthDate)?.start ?? monthDate
                 var monthlyReport = MonthlyReport(month: monthStart)
-                
-                print("DEBUG: Generating data for month \(monthStart)")
                 
                 // Generate work days for this month
                 let range = calendar.range(of: .day, in: .month, for: monthStart) ?? 1..<29
@@ -396,14 +333,10 @@ class MechanicViewModel: ObservableObject {
                 // Only add month if it has work days
                 if !monthlyReport.workDays.isEmpty {
                     monthlyReports.append(monthlyReport)
-                    print("DEBUG: Added month \(monthlyReport.month) with \(monthlyReport.workDays.count) work days")
-                } else {
-                    print("DEBUG: Skipped empty month \(monthlyReport.month)")
                 }
             }
         }
         
-        print("DEBUG: Total reports before save: \(monthlyReports.count)")
         saveMonthlyReports()
         
         // Reload data to ensure consistency - na main thread
@@ -412,14 +345,6 @@ class MechanicViewModel: ObservableObject {
             self.setupCurrentMonth()
         }
         
-        print("DEBUG: Test data generation completed. Total reports: \(monthlyReports.count)")
-        if let currentReport = currentMonthReport {
-            print("DEBUG: Current month report has \(currentReport.workDays.count) work days")
-        }
-        
-        // Debug: Zkontrolovat currentMonthStats
-        let stats = currentMonthStats
-        print("DEBUG: Final currentMonthStats - driving: \(stats.drivingHours), working: \(stats.workingHours), km: \(stats.kilometers)")
     }
     
     private func generateRealisticWorkDay(for date: Date) -> WorkDay {
@@ -655,7 +580,6 @@ class MechanicViewModel: ObservableObject {
     // MARK: - Widget Data Management
     func updateWidgetData() {
         guard let currentReport = currentMonthReport else { 
-            print("DEBUG: updateWidgetData - No current month report")
             return 
         }
         
@@ -663,17 +587,10 @@ class MechanicViewModel: ObservableObject {
         let totalKilometers = currentReport.totalKilometers
         let fuelCosts = monthlyFuelCost  // Použít stejnou hodnotu jako v aplikaci
         
-        print("DEBUG: updateWidgetData - Saving data:")
-        print("  - Total Hours: \(totalHours)")
-        print("  - Total Kilometers: \(totalKilometers)")
-        print("  - Fuel Costs: \(fuelCosts)")
-        
         widgetDataManager.saveWidgetData(
             totalHours: totalHours,
             totalKilometers: totalKilometers,
             totalEarnings: fuelCosts  // Změněno z calculateEarnings na fuelCosts
         )
-        
-        print("DEBUG: updateWidgetData - Data saved successfully")
     }
 } 

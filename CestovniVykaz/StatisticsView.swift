@@ -190,18 +190,6 @@ struct StatisticsView: View {
             }
             .navigationTitle("Statistiky")
             .navigationBarTitleDisplayMode(.inline)
-            .navigationBarBackButtonHidden(true)
-            .toolbar {
-                ToolbarItem(placement: .navigationBarLeading) {
-                    Button(action: {
-                        // NavigationStack will handle going back
-                    }) {
-                        Image(systemName: "chevron.left")
-                            .font(.system(size: 16, weight: .medium))
-                            .foregroundStyle(.blue)
-                    }
-                }
-            }
             .onAppear {
                 withAnimation(.easeOut(duration: 0.8)) {
                     animateContent = true

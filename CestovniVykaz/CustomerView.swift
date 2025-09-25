@@ -115,17 +115,7 @@ struct CustomerView: View {
             }
             .navigationTitle(localizationManager.localizedString("customers"))
             .navigationBarTitleDisplayMode(.inline)
-            .navigationBarBackButtonHidden(true)
             .toolbar {
-                ToolbarItem(placement: .navigationBarLeading) {
-                    Button(action: {
-                        selectedTab = 0 // Go to home tab
-                    }) {
-                        Image(systemName: "chevron.left")
-                            .font(.system(size: 16, weight: .medium))
-                            .foregroundStyle(.blue)
-                    }
-                }
                 ToolbarItem(placement: .navigationBarTrailing) {
                     Button(action: {
                         showingSettings = true
@@ -152,64 +142,72 @@ struct CustomerRow: View {
     let customer: Customer
     @ObservedObject var viewModel: MechanicViewModel
     @Binding var selectedTab: Int
-    @State private var showingDeleteAlert = false
+    @State private var showingDeleteConfirmation = false
     @ObservedObject var localizationManager = LocalizationManager.shared
     
     var body: some View {
-        HStack(spacing: 16) {
-            // People icon (left side)
-            Image(systemName: "person.2.fill")
-                .font(.title2)
-                .foregroundStyle(.blue)
-            
-            // Customer info
-            VStack(alignment: .leading, spacing: 4) {
-                Text(customer.name)
-                    .font(.headline)
-                    .fontWeight(.medium)
-                    .foregroundStyle(.primary)
-                
-                Text(customer.city)
-                    .font(.subheadline)
-                    .foregroundStyle(.secondary)
-            }
-            
-            Spacer()
-            
-            // Kilometers
-            VStack(alignment: .trailing, spacing: 2) {
-                Text(String(format: "%.0f km", customer.kilometers))
-                    .font(.subheadline)
-                    .fontWeight(.medium)
-                    .foregroundStyle(.primary)
-                
-                Text(String(format: "%.1f h", customer.drivingTime))
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-            }
-            
-            // Edit button
-            NavigationLink(destination: EditCustomerSheet(customer: customer, viewModel: viewModel, selectedTab: $selectedTab)) {
-                Image(systemName: "pencil.circle.fill")
+        NavigationLink(destination: EditCustomerSheet(customer: customer, viewModel: viewModel, selectedTab: $selectedTab)) {
+            HStack(spacing: 16) {
+                // People icon (left side)
+                Image(systemName: "person.2.fill")
                     .font(.title2)
                     .foregroundStyle(.blue)
+                    .frame(width: 24, height: 24)
+                
+                // Customer info
+                VStack(alignment: .leading, spacing: 4) {
+                    Text(customer.name)
+                        .font(.headline)
+                        .fontWeight(.medium)
+                        .foregroundStyle(.primary)
+                        .lineLimit(1)
+                    
+                    Text(customer.city)
+                        .font(.subheadline)
+                        .foregroundStyle(.secondary)
+                        .lineLimit(1)
+                }
+                
+                Spacer()
+                
+                // Statistics
+                VStack(alignment: .trailing, spacing: 2) {
+                    Text(String(format: "%.0f km", customer.kilometers))
+                        .font(.subheadline)
+                        .fontWeight(.medium)
+                        .foregroundStyle(.primary)
+                    
+                    Text(String(format: "%.1f h", customer.drivingTime))
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
+                .frame(minWidth: 60, alignment: .trailing)
+                
+                // Navigation arrow
+                //Image(systemName: "chevron.right")
+                //    .font(.caption)
+                //    .foregroundStyle(.secondary)
             }
-            .buttonStyle(PlainButtonStyle())
         }
+        .buttonStyle(PlainButtonStyle())
         .padding()
         .background(.regularMaterial)
         .clipShape(RoundedRectangle(cornerRadius: 12))
         .swipeActions(edge: .trailing, allowsFullSwipe: false) {
-            Button(role: .destructive) {
-                showingDeleteAlert = true
+            Button(role: .cancel) {
+                showingDeleteConfirmation = true
             } label: {
                 Label(localizationManager.localizedString("delete"), systemImage: "trash")
+                    .foregroundColor(.red)
             }
         }
-        .alert("Smazat zákazníka", isPresented: $showingDeleteAlert) {
-            Button("Zrušit", role: .cancel) { }
+        .confirmationDialog("Smazat zákazníka", isPresented: $showingDeleteConfirmation, titleVisibility: .visible) {
+            Button("Zrušit", role: .cancel) { 
+                showingDeleteConfirmation = false
+            }
             Button(localizationManager.localizedString("delete"), role: .destructive) {
                 viewModel.deleteCustomer(customer)
+                showingDeleteConfirmation = false
             }
         } message: {
             Text(localizationManager.localizedString("confirmDeleteCustomer").replacingOccurrences(of: "{name}", with: customer.name))
@@ -231,6 +229,14 @@ struct AddCustomerSheet: View {
     @State private var showingValidationAlert = false
     @State private var validationErrors: [String] = []
     @State private var animateForm = false
+    @FocusState private var focusedField: Field?
+    
+    enum Field {
+        case customerName
+        case city
+        case kilometers
+        case drivingTime
+    }
     
     var body: some View {
         NavigationView {
@@ -307,24 +313,15 @@ struct AddCustomerSheet: View {
                     .animation(.easeOut(duration: 0.6).delay(0.8), value: animateForm)
                 }
             }
+            .onTapGesture {
+                // Zavřít klávesnici při kliknutí mimo textové pole
+                focusedField = nil
+            }
             .navigationTitle("Nový zákazník")
             .navigationBarTitleDisplayMode(.inline)
-            .navigationBarBackButtonHidden(true)
-            .toolbar {
-                ToolbarItem(placement: .navigationBarLeading) {
-                    Button(action: {
-                        // NavigationStack will handle going back
-                    }) {
-                        Image(systemName: "chevron.left")
-                            .font(.system(size: 16, weight: .medium))
-                            .foregroundStyle(.blue)
-                    }
-                }
-            }
             .alert("Úspěch", isPresented: $showingSuccessAlert) {
                 Button(action: {
                     clearForm()
-                    dismiss()
                 }) {
                     Text(localizationManager.localizedString("ok"))
                         .frame(maxWidth: .infinity)
@@ -355,6 +352,9 @@ struct AddCustomerSheet: View {
     }
     
     private func saveCustomer() {
+        // Zavřít klávesnici
+        focusedField = nil
+        
         validationErrors = []
         
         // Validation
@@ -500,18 +500,6 @@ struct EditCustomerSheet: View {
             }
             .navigationTitle("Upravit zákazníka")
             .navigationBarTitleDisplayMode(.inline)
-            .navigationBarBackButtonHidden(true)
-            .toolbar {
-                ToolbarItem(placement: .navigationBarLeading) {
-                    Button(action: {
-                        // NavigationStack will handle going back
-                    }) {
-                        Image(systemName: "chevron.left")
-                            .font(.system(size: 16, weight: .medium))
-                            .foregroundStyle(.blue)
-                    }
-                }
-            }
             .alert("Úspěch", isPresented: $showingSuccessAlert) {
                 Button(action: {
                     dismiss()

@@ -53,6 +53,7 @@ enum DayType: String, Codable, CaseIterable {
 struct WorkDay: Identifiable, Codable {
     var id = UUID()
     var date: Date
+    var customerName: String
     var drivingHours: Double
     var workingHours: Double
     var kilometers: Double
@@ -62,8 +63,9 @@ struct WorkDay: Identifiable, Codable {
     var dayType: DayType
     var createdAt: Date
     
-    init(date: Date, drivingHours: Double = 0.0, workingHours: Double = 0.0, kilometers: Double = 0.0, city: String = "", notes: String = "", isCompleted: Bool = false, dayType: DayType = .work) {
+    init(date: Date, customerName: String = "", drivingHours: Double = 0.0, workingHours: Double = 0.0, kilometers: Double = 0.0, city: String = "", notes: String = "", isCompleted: Bool = false, dayType: DayType = .work) {
         self.date = date
+        self.customerName = customerName
         self.drivingHours = drivingHours
         self.workingHours = workingHours
         self.kilometers = kilometers
@@ -80,6 +82,7 @@ struct WorkDay: Identifiable, Codable {
         
         id = try container.decode(UUID.self, forKey: .id)
         date = try container.decode(Date.self, forKey: .date)
+        customerName = try container.decodeIfPresent(String.self, forKey: .customerName) ?? ""
         drivingHours = try container.decode(Double.self, forKey: .drivingHours)
         workingHours = try container.decode(Double.self, forKey: .workingHours)
         kilometers = try container.decode(Double.self, forKey: .kilometers)
@@ -104,6 +107,7 @@ struct WorkDay: Identifiable, Codable {
     }
 }
 
+// MARK: - Monthly Report
 struct MonthlyReport: Identifiable, Codable {
     var id = UUID()
     var month: Date
@@ -230,4 +234,4 @@ struct Customer: Identifiable, Codable {
         self.drivingTime = drivingTime
         self.createdAt = Date()
     }
-} 
+}

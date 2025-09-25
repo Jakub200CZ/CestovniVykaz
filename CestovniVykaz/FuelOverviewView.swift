@@ -8,6 +8,7 @@
 import SwiftUI
 
 struct FuelOverviewView: View {
+    @Environment(\.dismiss) private var dismiss
     @ObservedObject var viewModel: MechanicViewModel
     @ObservedObject var localizationManager = LocalizationManager.shared
     @Binding var selectedTab: Int
@@ -135,17 +136,25 @@ struct FuelOverviewView: View {
             }
             .navigationTitle(localizationManager.localizedString("fuel"))
             .navigationBarTitleDisplayMode(.inline)
-            .navigationBarBackButtonHidden(true)
+            .navigationBarBackButtonHidden()
             .toolbar {
-                ToolbarItem(placement: .navigationBarLeading) {
-                    Button(action: {
-                        selectedTab = 0 // Go to home tab
-                    }) {
-                        Image(systemName: "chevron.left")
-                            .font(.system(size: 16, weight: .medium))
+                
+                // 🔙 Zpět tlačítko vlevo
+                    ToolbarItem(placement: .navigationBarLeading) {
+                        Button(action: {
+                            // Akce pro návrat zpět
+                            // Pokud používáš NavigationStack:
+                            // dismiss() zavře aktuální view
+                            dismiss()
+                        }) {
+                            HStack {
+                                Image(systemName: "chevron.left")
+                                Text(localizationManager.localizedString("back"))
+                            }
                             .foregroundStyle(.blue)
+                        }
                     }
-                }
+                
                 ToolbarItem(placement: .navigationBarTrailing) {
                     Button(action: {
                         showingSettings = true
@@ -735,18 +744,6 @@ struct FuelEntrySheet: View {
             }
             .navigationTitle("Nové tankování")
             .navigationBarTitleDisplayMode(.inline)
-            .navigationBarBackButtonHidden(true)
-            .toolbar {
-                ToolbarItem(placement: .navigationBarLeading) {
-                    Button(action: {
-                        // NavigationStack will handle going back
-                    }) {
-                        Image(systemName: "chevron.left")
-                            .font(.system(size: 16, weight: .medium))
-                            .foregroundStyle(.blue)
-                    }
-                }
-            }
             .alert("Úspěch", isPresented: $showingSuccessAlert) {
                 Button(action: {
                     clearForm()

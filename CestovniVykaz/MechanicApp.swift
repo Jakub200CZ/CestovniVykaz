@@ -97,6 +97,7 @@ struct WorkDayEntryView: View {
     @Binding var selectedTab: Int
     @ObservedObject var localizationManager = LocalizationManager.shared
     @State private var selectedDate = Date()
+    @State private var customerName = ""
     @State private var drivingHours = ""
     @State private var workingHours = ""
     @State private var kilometers = ""
@@ -106,6 +107,7 @@ struct WorkDayEntryView: View {
     @State private var showingValidationAlert = false
     @State private var validationErrors: [String] = []
     @State private var showingCitySuggestions = false
+    @State private var showingCustomerSuggestions = false
     @State private var isSelectingSuggestion = false
     @State private var isEditingExistingRecord = false
     @State private var selectedDayType: DayType = .work
@@ -115,6 +117,7 @@ struct WorkDayEntryView: View {
     @FocusState private var focusedField: Field?
     
     enum Field {
+        case customerName
         case drivingHours
         case workingHours
         case kilometers
@@ -224,6 +227,20 @@ struct WorkDayEntryView: View {
         return Array(Set(filtered)).sorted()
     }
     
+    private var filteredCustomers: [Customer] {
+        if customerName.isEmpty {
+            return []
+        }
+        let searchTerm = customerName.lowercased()
+        let normalizedSearchTerm = removeDiacritics(searchTerm)
+        let filtered = viewModel.customers.filter { customer in
+            let normalizedCustomerName = removeDiacritics(customer.name.lowercased())
+            return customer.name.lowercased().contains(searchTerm) || 
+                   normalizedCustomerName.contains(normalizedSearchTerm)
+        }
+        return filtered
+    }
+    
     private func removeDiacritics(_ text: String) -> String {
         return text
             .replacingOccurrences(of: "á", with: "a")
@@ -256,6 +273,38 @@ struct WorkDayEntryView: View {
             .replacingOccurrences(of: "Ů", with: "U")
             .replacingOccurrences(of: "Ý", with: "Y")
             .replacingOccurrences(of: "Ž", with: "Z")
+    }
+    
+    private func selectCustomer(_ customer: Customer) {
+        customerName = customer.name
+        city = customer.city
+        kilometers = String(customer.kilometers)
+        drivingHours = String(customer.drivingTime)
+        showingCustomerSuggestions = false
+        isSelectingSuggestion = true
+    }
+    
+    private func findOrCreateCustomer() -> Customer? {
+        // Najít existujícího zákazníka
+        if let existingCustomerIndex = viewModel.customers.firstIndex(where: { $0.name.lowercased() == customerName.lowercased() }) {
+            // Aktualizovat existujícího zákazníka s novými daty
+            var updatedCustomer = viewModel.customers[existingCustomerIndex]
+            updatedCustomer.city = city
+            updatedCustomer.kilometers = Double(kilometers) ?? 0.0
+            updatedCustomer.drivingTime = Double(drivingHours) ?? 0.0
+            viewModel.updateCustomer(updatedCustomer)
+            return updatedCustomer
+        }
+        
+        // Pokud zákazník neexistuje, vytvořit nového
+        let newCustomer = Customer(
+            name: customerName,
+            city: city,
+            kilometers: Double(kilometers) ?? 0.0,
+            drivingTime: Double(drivingHours) ?? 0.0
+        )
+        viewModel.addCustomer(newCustomer)
+        return newCustomer
     }
     
     var body: some View {
@@ -310,20 +359,15 @@ struct WorkDayEntryView: View {
                         }
                     }
                     .onChange(of: selectedDate) { _, newDate in
-                        print("DEBUG: Změna data na \(newDate.formatted(.dateTime.day().month().year()))")
-                        print("DEBUG: hasExistingRecord = \(hasExistingRecord(for: newDate))")
-                        
                         // Zkontrolovat, zda existuje záznam pro vybrané datum
                         if hasExistingRecord(for: newDate) {
                             // Načíst existující záznam
                             loadExistingRecord(for: newDate)
                             isEditingExistingRecord = true
-                            print("DEBUG: Načítám existující záznam pro \(newDate.formatted(.dateTime.day().month().year()))")
                         } else {
                             // Nový záznam
                             clearFormForNewRecord()
                             isEditingExistingRecord = false
-                            print("DEBUG: Vytvářím nový záznam pro \(newDate.formatted(.dateTime.day().month().year()))")
                         }
                         
                         // Zavřít DatePicker po výběru
@@ -342,6 +386,7 @@ struct WorkDayEntryView: View {
                     .onChange(of: selectedDayType) { _, newType in
                         // Vymazat všechna pole při výběru dovolené nebo lékaře
                         if newType == .vacation || newType == .sick {
+                            customerName = ""
                             drivingHours = ""
                             workingHours = ""
                             kilometers = ""
@@ -353,6 +398,63 @@ struct WorkDayEntryView: View {
                 
                 // Zobrazit pouze pokud není dovolená nebo lékař
                 if selectedDayType == .work {
+                    Section("Zákazníci") {
+                        VStack(alignment: .leading, spacing: 8) {
+                            HStack {
+                                Text(localizationManager.localizedString("customer"))
+                                Spacer()
+                                TextField("Zadejte jméno zákazníka", text: $customerName)
+                                    .multilineTextAlignment(.trailing)
+                                    .disabled(isEditingExistingRecord)
+                                    .focused($focusedField, equals: .customerName)
+                                    .onSubmit {
+                                        // Enter na klávesnici - vybrat prvního zákazníka
+                                        if !filteredCustomers.isEmpty {
+                                            selectCustomer(filteredCustomers.first!)
+                                        }
+                                    }
+                                    .onChange(of: customerName) { _, newValue in
+                                        if !isSelectingSuggestion {
+                                            showingCustomerSuggestions = !newValue.isEmpty && !filteredCustomers.isEmpty
+                                        }
+                                        isSelectingSuggestion = false
+                                    }
+                            }
+                            
+                            // Zobrazit návrhy zákazníků
+                            if showingCustomerSuggestions && !filteredCustomers.isEmpty {
+                                VStack(alignment: .leading, spacing: 4) {
+                                    ForEach(filteredCustomers.prefix(5), id: \.id) { customer in
+                                        Button(action: {
+                                            selectCustomer(customer)
+                                        }) {
+                                            HStack {
+                                                VStack(alignment: .leading, spacing: 2) {
+                                                    Text(customer.name)
+                                                        .foregroundStyle(.primary)
+                                                        .font(.system(size: 16, weight: .medium))
+                                                    Text("\(String(format: "%.0f", customer.kilometers)) km • \(String(format: "%.1f", customer.drivingTime))h")
+                                                        .foregroundStyle(.secondary)
+                                                        .font(.system(size: 14))
+                                                }
+                                                Spacer()
+                                            }
+                                            .padding(.vertical, 8)
+                                            .padding(.horizontal, 12)
+                                            .background(Color(.systemGray6))
+                                            .clipShape(RoundedRectangle(cornerRadius: 8))
+                                        }
+                                        .buttonStyle(PlainButtonStyle())
+                                    }
+                                }
+                                .padding(.top, 8)
+                            }
+                        }
+                        .opacity(animateForm ? 1.0 : 0.0)
+                        .offset(y: animateForm ? 0 : 20)
+                        .animation(.easeOut(duration: 0.6).delay(0.1), value: animateForm)
+                    }
+                    
                     Section("Časové údaje") {
                         HStack {
                             Text(localizationManager.localizedString("drivingTime"))
@@ -481,20 +583,14 @@ struct WorkDayEntryView: View {
                 }
                 }
                 .padding(.top, 16)
+                .onTapGesture {
+                    // Zavřít klávesnici při kliknutí mimo textové pole
+                    focusedField = nil
+                }
             }
             .navigationTitle(localizationManager.localizedString("records"))
             .navigationBarTitleDisplayMode(.inline)
-            .navigationBarBackButtonHidden(true)
             .toolbar {
-                ToolbarItem(placement: .navigationBarLeading) {
-                    Button(action: {
-                        selectedTab = 0 // Go to home tab
-                    }) {
-                        Image(systemName: "chevron.left")
-                            .font(.system(size: 16, weight: .medium))
-                            .foregroundStyle(.blue)
-                    }
-                }
                 ToolbarItem(placement: .navigationBarTrailing) {
                     Button(action: {
                         showingSettings = true
@@ -504,6 +600,8 @@ struct WorkDayEntryView: View {
                     }
                 }
             }
+            .tint(.blue) // změní barvu i ikonky zpět
+
             .sheet(isPresented: $showingSettings) {
                 SettingsView()
             }
@@ -593,6 +691,7 @@ struct WorkDayEntryView: View {
                     calendar.isDate(workDay.date, inSameDayAs: selectedDate)
                 }) {
                     var updatedWorkDay = existingWorkDay
+                    updatedWorkDay.customerName = customerName
                     updatedWorkDay.drivingHours = drivingHours.toDouble() ?? 0.0
                     updatedWorkDay.workingHours = workingHours.toDouble() ?? 0.0
                     updatedWorkDay.kilometers = kilometers.toDouble() ?? 0.0
@@ -600,14 +699,25 @@ struct WorkDayEntryView: View {
                     updatedWorkDay.notes = notes
                     updatedWorkDay.dayType = selectedDayType
                     
+                    // Najít nebo vytvořit zákazníka
+                    if !customerName.isEmpty {
+                        _ = findOrCreateCustomer()
+                    }
+                    
                     viewModel.updateWorkDay(updatedWorkDay, in: report)
                     showingSuccessAlert = true
                 }
             }
         } else {
+            // Najít nebo vytvořit zákazníka
+            if !customerName.isEmpty {
+                _ = findOrCreateCustomer()
+            }
+            
             // Vytvořit nový záznam
             let workDay = WorkDay(
                 date: selectedDate,
+                customerName: customerName,
                 drivingHours: drivingHours.toDouble() ?? 0.0,
                 workingHours: workingHours.toDouble() ?? 0.0,
                 kilometers: kilometers.toDouble() ?? 0.0,
@@ -635,6 +745,7 @@ struct WorkDayEntryView: View {
                 calendar.isDate(workDay.date, inSameDayAs: date)
             }) {
                 // Načíst data do formuláře
+                customerName = workDay.customerName
                 drivingHours = String(format: "%.1f", workDay.drivingHours)
                 workingHours = String(format: "%.1f", workDay.workingHours)
                 kilometers = String(format: "%.0f", workDay.kilometers)
@@ -642,20 +753,16 @@ struct WorkDayEntryView: View {
                 notes = workDay.notes
                 selectedDayType = workDay.dayType
                 
-                print("DEBUG: Načten existující záznam pro \(date.formatted(.dateTime.day().month().year()))")
-                print("DEBUG: Data - jízda: \(drivingHours)h, práce: \(workingHours)h, km: \(kilometers), město: \(city)")
-                print("DEBUG: Report nalezen: \(report.month.formatted(.dateTime.month().year())) s \(report.workDays.count) workDays")
             } else {
-                print("DEBUG: WorkDay nebyl nalezen v reportu")
+                // WorkDay nebyl nalezen v reportu
             }
         } else {
-            print("DEBUG: Report nebyl nalezen pro měsíc \(date.formatted(.dateTime.month().year()))")
-            print("DEBUG: Celkem reportů: \(viewModel.monthlyReports.count)")
-            print("DEBUG: Filtrovaných reportů: \(baseReports.count)")
+            // Report nebyl nalezen pro měsíc
         }
     }
     
     private func clearFormForNewRecord() {
+        customerName = ""
         drivingHours = ""
         workingHours = ""
         kilometers = ""
@@ -665,6 +772,7 @@ struct WorkDayEntryView: View {
     }
     
     private func clearForm() {
+        customerName = ""
         drivingHours = ""
         workingHours = ""
         kilometers = ""

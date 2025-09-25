@@ -185,6 +185,7 @@ class LocalizationData {
             "alreadyHasRecord": "Již máte záznam pro tento den",
             "editRecord": "Upravit záznam",
             "deleteRecord": "Smazat záznam",
+            "customer": "Zákazník",
             
             // Day Types
             "workDay": "Práce",
@@ -445,6 +446,7 @@ class LocalizationData {
             "alreadyHasRecord": "You already have a record for this day",
             "editRecord": "Edit Record",
             "deleteRecord": "Delete Record",
+            "customer": "Customer",
             
             // Day Types
             "workDay": "Work",
@@ -705,6 +707,7 @@ class LocalizationData {
             "alreadyHasRecord": "Sie haben bereits eine Aufzeichnung für diesen Tag",
             "editRecord": "Aufzeichnung bearbeiten",
             "deleteRecord": "Aufzeichnung löschen",
+            "customer": "Kunde",
             
             // Day Types
             "workDay": "Arbeit",

@@ -41,17 +41,7 @@ struct HistoryView: View {
             }
             .navigationTitle(localizationManager.localizedString("history"))
             .navigationBarTitleDisplayMode(.inline)
-            .navigationBarBackButtonHidden(true)
             .toolbar {
-                ToolbarItem(placement: .navigationBarLeading) {
-                    Button(action: {
-                        selectedTab = 0 // Go to home tab
-                    }) {
-                        Image(systemName: "chevron.left")
-                            .font(.system(size: 16, weight: .medium))
-                            .foregroundStyle(.blue)
-                    }
-                }
                 ToolbarItem(placement: .navigationBarTrailing) {
                     Button(action: {
                         showingSettings = true
@@ -223,18 +213,12 @@ struct MonthDetailView: View, Identifiable {
         // Použít stejnou logiku jako v sortedReports - najít report s workDays
         let filteredReports = viewModel.monthlyReports.filter { !$0.workDays.isEmpty }
         
-        print("DEBUG: MonthDetailView - Hledám měsíc: \(month.formatted(.dateTime.month().year()))")
-        print("DEBUG: MonthDetailView - Celkem reportů: \(viewModel.monthlyReports.count)")
-        print("DEBUG: MonthDetailView - Filtrovaných reportů: \(filteredReports.count)")
-        
         if let foundReport = filteredReports.first(where: { report in
             calendar.isDate(report.month, equalTo: month, toGranularity: .month)
         }) {
-            print("DEBUG: MonthDetailView - Nalezen report s \(foundReport.workDays.count) workDays")
             return foundReport
         }
         
-        print("DEBUG: MonthDetailView - Report nebyl nalezen")
         return nil
     }
     
@@ -300,21 +284,9 @@ struct MonthDetailView: View, Identifiable {
             }
             .navigationTitle(month.localizedMonthYear(for: localizationManager.currentLanguage).capitalized)
             .navigationBarTitleDisplayMode(.inline)
-            .navigationBarBackButtonHidden(true)
-            .toolbar {
-                ToolbarItem(placement: .navigationBarLeading) {
-                    Button(action: {
-                        // NavigationStack will handle going back
-                    }) {
-                        Image(systemName: "chevron.left")
-                            .font(.system(size: 16, weight: .medium))
-                            .foregroundStyle(.blue)
-                    }
-                }
-            }
             .sheet(item: $editingWorkDay) { workDay in
                 if let report = report {
-                    EditWorkDaySheet(viewModel: viewModel, workDay: workDay, report: report, selectedTab: $selectedTab, onDismiss: {
+                    EditWorkDaySheet(viewModel: viewModel, workDay: workDay, report: report, onDismiss: {
                         editingWorkDay = nil
                     })
                 }
@@ -551,7 +523,6 @@ struct EditWorkDaySheet: View {
     @ObservedObject var viewModel: MechanicViewModel
     @State var workDay: WorkDay
     let report: MonthlyReport
-    @Binding var selectedTab: Int
     var onDismiss: () -> Void
     @Environment(\.dismiss) private var dismiss
     @ObservedObject var localizationManager = LocalizationManager.shared

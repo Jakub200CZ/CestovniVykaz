@@ -16,12 +16,6 @@ class WidgetDataManager {
     
     // MARK: - Save Data
     func saveWidgetData(totalHours: Double, totalKilometers: Double, totalEarnings: Double) {
-        print("DEBUG: WidgetDataManager - Saving data to UserDefaults")
-        print("  - Suite Name: group.eu.jakubsedlacek.CestovniVykaz.widget")
-        print("  - Total Hours: \(totalHours)")
-        print("  - Total Kilometers: \(totalKilometers)")
-        print("  - Fuel Costs: \(totalEarnings)")
-        
         userDefaults?.set(totalHours, forKey: totalHoursKey)
         userDefaults?.set(totalKilometers, forKey: totalKilometersKey)
         userDefaults?.set(totalEarnings, forKey: totalEarningsKey)
@@ -29,8 +23,6 @@ class WidgetDataManager {
         
         // Force synchronize
         userDefaults?.synchronize()
-        
-        print("DEBUG: WidgetDataManager - Data saved, reloading widget timelines")
         
         // Update widget timeline
         WidgetCenter.shared.reloadAllTimelines()
