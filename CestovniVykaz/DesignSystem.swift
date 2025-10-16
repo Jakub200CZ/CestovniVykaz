@@ -258,6 +258,51 @@ struct StatCard: View {
     }
 }
 
+struct ActionButtonContent: View {
+    let title: String
+    let subtitle: String?
+    let icon: String
+    let color: Color
+    
+    init(title: String, subtitle: String? = nil, icon: String, color: Color) {
+        self.title = title
+        self.subtitle = subtitle
+        self.icon = icon
+        self.color = color
+    }
+    
+    var body: some View {
+        HStack(spacing: DesignSystem.Spacing.md) {
+            Image(systemName: icon)
+                .font(.title2)
+                .foregroundStyle(color)
+                .frame(width: 30)
+            
+            VStack(alignment: .leading, spacing: 2) {
+                Text(title)
+                    .font(DesignSystem.Typography.subheadline)
+                    .fontWeight(.medium)
+                    .foregroundStyle(DesignSystem.Colors.textPrimary)
+                
+                if let subtitle = subtitle {
+                    Text(subtitle)
+                        .font(DesignSystem.Typography.caption)
+                        .foregroundStyle(DesignSystem.Colors.textSecondary)
+                }
+            }
+            
+            Spacer()
+            
+            Image(systemName: "chevron.right")
+                .font(.caption)
+                .foregroundStyle(DesignSystem.Colors.textSecondary)
+        }
+        .padding(DesignSystem.Spacing.cardPadding)
+        .background(.regularMaterial)
+        .clipShape(RoundedRectangle(cornerRadius: DesignSystem.CornerRadius.button))
+    }
+}
+
 struct ActionButton: View {
     let title: String
     let subtitle: String?

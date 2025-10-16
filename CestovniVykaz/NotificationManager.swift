@@ -54,7 +54,7 @@ class NotificationManager: ObservableObject {
         }
     }
     
-    func scheduleDailyReminder() {
+    func scheduleDailyReminder(at hour: Int = 20, minute: Int = 0) {
         guard isAuthorized else { return }
         
         // Zrušit existující notifikace
@@ -65,12 +65,12 @@ class NotificationManager: ObservableObject {
         content.title = "Cestovní výkaz"
         content.body = "Nezapomeňte vyplnit výkaz za dnešní den!"
         content.sound = .default
-        content.badge = 1
+        content.badge = nil
         
-        // Nastavit čas na 20:00 každý den
+        // Nastavit čas na zadaný čas každý den
         var dateComponents = DateComponents()
-        dateComponents.hour = 20
-        dateComponents.minute = 0
+        dateComponents.hour = hour
+        dateComponents.minute = minute
         
         let trigger = UNCalendarNotificationTrigger(
             dateMatching: dateComponents,
@@ -87,7 +87,7 @@ class NotificationManager: ObservableObject {
             if let error = error {
                 print("Error scheduling notification: \(error)")
             } else {
-                print("Daily reminder scheduled successfully")
+                print("Daily reminder scheduled for \(hour):\(String(format: "%02d", minute))")
             }
         }
     }
@@ -99,36 +99,5 @@ class NotificationManager: ObservableObject {
     
     func checkIfWorkDayCompleted(for date: Date, viewModel: MechanicViewModel) -> Bool {
         return viewModel.checkIfWorkDayCompleted(for: date)
-    }
-    
-    func scheduleTestNotification() {
-        guard isAuthorized else { return }
-        
-        // Vytvořit obsah test notifikace
-        let content = UNMutableNotificationContent()
-        content.title = "Cestovní výkaz"
-        content.body = "Nezapomeňte vyplnit výkaz za dnešní den!"
-        content.sound = .default
-        content.badge = 1
-        
-        // Nastavit trigger na 15 sekund
-        let trigger = UNTimeIntervalNotificationTrigger(
-            timeInterval: 15,
-            repeats: false
-        )
-        
-        let request = UNNotificationRequest(
-            identifier: "testNotification",
-            content: content,
-            trigger: trigger
-        )
-        
-        UNUserNotificationCenter.current().add(request) { error in
-            if let error = error {
-                print("Error scheduling test notification: \(error)")
-            } else {
-                print("Test notification scheduled successfully")
-            }
-        }
     }
 }

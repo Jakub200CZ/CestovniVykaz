@@ -9,13 +9,23 @@ import SwiftUI
 
 struct SettingsView: View {
     @ObservedObject var notificationManager = NotificationManager.shared
-    @ObservedObject var localizationManager = LocalizationManager.shared
     @AppStorage("notificationsEnabled") private var notificationsEnabled = true
+    @AppStorage("notificationHour") private var notificationHour = 20
+    @AppStorage("notificationMinute") private var notificationMinute = 0
+    @State private var showingTimePicker = false
+    
+    private var notificationTime: Date {
+        let calendar = Calendar.current
+        var components = DateComponents()
+        components.hour = notificationHour
+        components.minute = notificationMinute
+        return calendar.date(from: components) ?? Date()
+    }
     
     var body: some View {
         NavigationView {
             Form {
-                Section(localizationManager.localizedString("notifications")) {
+                Section("Notifikace") {
                     VStack(alignment: .leading, spacing: 12) {
                         // Toggle pro zapnutí/vypnutí notifikací
                         Button(action: {
@@ -24,7 +34,7 @@ struct SettingsView: View {
                                 Task {
                                     await notificationManager.requestPermission()
                                     if notificationManager.isAuthorized {
-                                        notificationManager.scheduleDailyReminder()
+                                        notificationManager.scheduleDailyReminder(at: notificationHour, minute: notificationMinute)
                                     }
                                 }
                             } else {
@@ -37,11 +47,11 @@ struct SettingsView: View {
                                     .frame(width: 24)
                                 
                                 VStack(alignment: .leading, spacing: 4) {
-                                    Text(localizationManager.localizedString("dailyReminder"))
+                                    Text("Denní připomínka")
                                         .font(.headline)
                                         .foregroundStyle(.primary)
                                     
-                                    Text(localizationManager.localizedString("notificationDescription"))
+                                    Text("Připomene vám vyplnit výkaz")
                                         .font(.subheadline)
                                         .foregroundStyle(.secondary)
                                 }
@@ -61,11 +71,11 @@ struct SettingsView: View {
                                 Task {
                                     await notificationManager.requestPermission()
                                     if notificationManager.isAuthorized {
-                                        notificationManager.scheduleDailyReminder()
+                                        notificationManager.scheduleDailyReminder(at: notificationHour, minute: notificationMinute)
                                     }
                                 }
                             }) {
-                                Text(localizationManager.localizedString("enableNotifications"))
+                                Text("Povolit notifikace")
                                     .frame(maxWidth: .infinity)
                                     .padding(.vertical, 8)
                                     .background(.blue)
@@ -76,79 +86,87 @@ struct SettingsView: View {
                             .buttonStyle(PlainButtonStyle())
                         } else if notificationsEnabled {
                             VStack(spacing: 8) {
-                                Text(localizationManager.localizedString("notificationsEnabled"))
+                                Text("Notifikace povoleny")
                                     .font(.caption)
                                     .foregroundStyle(.green)
-                                
-                                Button(action: {
-                                    notificationManager.scheduleTestNotification()
-                                }) {
-                                    HStack {
-                                        Image(systemName: "bell.badge")
-                                            .foregroundStyle(.white)
-                                        Text(localizationManager.localizedString("testNotification"))
-                                            .foregroundStyle(.white)
+                            }
+                        }
+                    }
+                    
+                    // Časový picker - skrytý/skrytý
+                    if showingTimePicker {
+                        VStack(alignment: .leading, spacing: 8) {
+                            Text("Čas notifikace")
+                                .font(.subheadline)
+                                .fontWeight(.medium)
+                                .foregroundStyle(.primary)
+                            
+                            DatePicker("", selection: Binding(
+                                get: { notificationTime },
+                                set: { newTime in
+                                    let calendar = Calendar.current
+                                    let components = calendar.dateComponents([.hour, .minute], from: newTime)
+                                    notificationHour = components.hour ?? 20
+                                    notificationMinute = components.minute ?? 0
+                                    
+                                    // Aktualizovat notifikaci pokud je zapnutá
+                                    if notificationsEnabled && notificationManager.isAuthorized {
+                                        notificationManager.scheduleDailyReminder(at: notificationHour, minute: notificationMinute)
                                     }
-                                    .frame(maxWidth: .infinity)
-                                    .padding(.vertical, 8)
-                                    .background(.orange)
-                                    .clipShape(RoundedRectangle(cornerRadius: 8))
                                 }
-                                .buttonStyle(PlainButtonStyle())
-                            }
+                            ), displayedComponents: .hourAndMinute)
+                            .datePickerStyle(.wheel)
+                            .labelsHidden()
                         }
+                        .padding(.vertical, 8)
                     }
+                    
+                    // Tlačítko pro otevření/zavření časového pickeru
+                    Button(action: {
+                        showingTimePicker.toggle()
+                    }) {
+                        HStack {
+                            Image(systemName: "clock.fill")
+                                .foregroundStyle(.orange)
+                                .frame(width: 24)
+                            
+                            Text("Nastavit čas")
+                                .foregroundStyle(.primary)
+                            
+                            Spacer()
+                            
+                            Image(systemName: showingTimePicker ? "chevron.up" : "chevron.down")
+                                .foregroundStyle(.secondary)
+                        }
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .padding(.vertical, 8)
+                        .contentShape(Rectangle())
+                    }
+                    .buttonStyle(PlainButtonStyle())
                 }
                 
-                Section(localizationManager.localizedString("language")) {
-                    ForEach(Language.allCases, id: \.self) { language in
-                        Button(action: {
-                            localizationManager.setLanguage(language)
-                        }) {
-                            HStack {
-                                Text(language.flag)
-                                    .font(.title2)
-                                    .frame(width: 30)
-                                
-                                Text(language.displayName)
-                                    .foregroundStyle(.primary)
-                                
-                                Spacer()
-                                
-                                if localizationManager.currentLanguage == language {
-                                    Image(systemName: "checkmark")
-                                        .foregroundStyle(.blue)
-                                }
-                            }
-                            .frame(maxWidth: .infinity, alignment: .leading)
-                            .padding(.vertical, 8)
-                            .contentShape(Rectangle())
-                        }
-                        .buttonStyle(PlainButtonStyle())
-                    }
-                }
-                
-                Section(localizationManager.localizedString("appInfo")) {
+                Section("O aplikaci") {
                     HStack {
                         Image(systemName: "info.circle.fill")
                             .foregroundStyle(.blue)
                             .frame(width: 24)
                         
                         VStack(alignment: .leading, spacing: 4) {
-                            Text(localizationManager.localizedString("version"))
+                            Text("Verze aplikace")
                                 .font(.headline)
                                 .foregroundStyle(.primary)
                             
-                            Text(localizationManager.localizedString("version"))
+                            Text(Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "Neznámá")
                                 .font(.subheadline)
                                 .foregroundStyle(.secondary)
                         }
                         
                         Spacer()
                     }
+                    .padding(.vertical, 8)
                 }
             }
-            .navigationTitle(localizationManager.localizedString("settings"))
+            .navigationTitle("Nastavení")
             .navigationBarTitleDisplayMode(.inline)
         }
     }

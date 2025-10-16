@@ -10,7 +10,6 @@ import SwiftUI
 
 struct CustomerView: View {
     @ObservedObject var viewModel: MechanicViewModel
-    @ObservedObject var localizationManager = LocalizationManager.shared
     @Binding var selectedTab: Int
     @State private var searchText = ""
     @State private var animateContent = false
@@ -18,14 +17,18 @@ struct CustomerView: View {
     
     // Filtered customers based on search
     private var filteredCustomers: [Customer] {
+        let customers: [Customer]
         if searchText.isEmpty {
-            return viewModel.customers
+            customers = viewModel.customers
         } else {
-            return viewModel.customers.filter { customer in
+            customers = viewModel.customers.filter { customer in
                 customer.name.localizedCaseInsensitiveContains(searchText) ||
                 customer.city.localizedCaseInsensitiveContains(searchText)
             }
         }
+        
+        // Seřadit podle abecedy podle názvu zákazníka
+        return customers.sorted { $0.name.localizedCaseInsensitiveCompare($1.name) == .orderedAscending }
     }
     
     var body: some View {
@@ -35,7 +38,7 @@ struct CustomerView: View {
                 // Add new customer field
                 NavigationLink(destination: AddCustomerSheet(viewModel: viewModel, selectedTab: $selectedTab)) {
                     HStack {
-                        Text(localizationManager.localizedString("addNewCustomer"))
+                        Text("Přidat nového zákazníka")
                             .font(.headline)
                             .fontWeight(.medium)
                             .foregroundStyle(.primary)
@@ -59,7 +62,7 @@ struct CustomerView: View {
                     Image(systemName: "magnifyingglass")
                         .foregroundStyle(.secondary)
                     
-                    TextField(localizationManager.localizedString("searchCustomers"), text: $searchText)
+                    TextField("Vyhledat zákazníky", text: $searchText)
                         .textFieldStyle(PlainTextFieldStyle())
                 }
                 .padding()
@@ -72,8 +75,8 @@ struct CustomerView: View {
                 if filteredCustomers.isEmpty {
                     EmptyState(
                         icon: "person.2",
-                        title: searchText.isEmpty ? localizationManager.localizedString("noCustomers") : localizationManager.localizedString("noCustomers"),
-                        subtitle: searchText.isEmpty ? localizationManager.localizedString("startAddingCustomers") : localizationManager.localizedString("tryDifferentSearch")
+                        title: searchText.isEmpty ? "Žádní zákazníci" : "Žádní zákazníci",
+                        subtitle: searchText.isEmpty ? "Začněte přidáváním zákazníků" : "Zkuste jiné vyhledávání"
                     )
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
                     .opacity(animateContent ? 1.0 : 0.0)
@@ -97,7 +100,7 @@ struct CustomerView: View {
                 
                 Spacer()
             }
-            .navigationTitle(localizationManager.localizedString("customers"))
+            .navigationTitle("Zákazníci")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .navigationBarTrailing) {
@@ -228,6 +231,7 @@ struct AddCustomerSheet: View {
                 Section("Informace o zákazníkovi") {
                     VStack(alignment: .leading, spacing: 4) {
                         TextField("Jméno zákazníka", text: $customerName)
+                            .focused($focusedField, equals: .customerName)
                             .opacity(animateForm ? 1.0 : 0.0)
                             .offset(y: animateForm ? 0 : 20)
                             .animation(.easeOut(duration: 0.6), value: animateForm)
@@ -239,6 +243,7 @@ struct AddCustomerSheet: View {
                     
                     VStack(alignment: .leading, spacing: 4) {
                         TextField("Město", text: $city)
+                            .focused($focusedField, equals: .city)
                             .opacity(animateForm ? 1.0 : 0.0)
                             .offset(y: animateForm ? 0 : 20)
                             .animation(.easeOut(duration: 0.6).delay(0.2), value: animateForm)
@@ -254,6 +259,7 @@ struct AddCustomerSheet: View {
                         Text(localizationManager.localizedString("customerKilometers"))
                         Spacer()
                         TextField("0", text: $kilometers)
+                            .focused($focusedField, equals: .kilometers)
                             .keyboardType(.decimalPad)
                             .multilineTextAlignment(.trailing)
                         Text(localizationManager.localizedString("km"))
@@ -268,6 +274,7 @@ struct AddCustomerSheet: View {
                         Text(localizationManager.localizedString("customerDrivingTime"))
                         Spacer()
                         TextField("0.0", text: $drivingTime)
+                            .focused($focusedField, equals: .drivingTime)
                             .keyboardType(.decimalPad)
                             .multilineTextAlignment(.trailing)
                         Text(localizationManager.localizedString("hours"))
@@ -296,10 +303,6 @@ struct AddCustomerSheet: View {
                     .offset(y: animateForm ? 0 : 20)
                     .animation(.easeOut(duration: 0.6).delay(0.8), value: animateForm)
                 }
-            }
-            .onTapGesture {
-                // Zavřít klávesnici při kliknutí mimo textové pole
-                focusedField = nil
             }
             .navigationTitle("Nový zákazník")
             .navigationBarTitleDisplayMode(.inline)

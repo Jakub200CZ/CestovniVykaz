@@ -205,6 +205,10 @@ struct MonthDetailView: View, Identifiable {
     @ObservedObject var localizationManager = LocalizationManager.shared
     @State private var editingWorkDay: WorkDay? = nil
     @State private var animateContent = false
+    @State private var showingShareSheet = false
+    @State private var csvFileURL: URL?
+    @State private var isExporting = false
+    @State private var showingSettings = false
     
     // Get current report data
     var report: MonthlyReport? {
@@ -274,6 +278,45 @@ struct MonthDetailView: View, Identifiable {
                                 .italic()
                         }
                     }
+                    
+                    // CSV Export sekce
+                    if !report.workDays.isEmpty {
+                        Section {
+                            Button(action: {
+                                exportToCSV()
+                            }) {
+                                HStack {
+                                    Image(systemName: "square.and.arrow.up")
+                                        .foregroundStyle(.blue)
+                                        .font(.title3)
+                                    
+                                    VStack(alignment: .leading, spacing: 2) {
+                                        Text("Exportovat data")
+                                            .font(.headline)
+                                            .foregroundStyle(.primary)
+                                        
+                                        Text("Uložit jako CSV soubor")
+                                            .font(.caption)
+                                            .foregroundStyle(.secondary)
+                                    }
+                                    
+                                    Spacer()
+                                    
+                                    if isExporting {
+                                        ProgressView()
+                                            .scaleEffect(0.8)
+                                    } else {
+                                        Image(systemName: "chevron.right")
+                                            .font(.caption)
+                                            .foregroundStyle(.secondary)
+                                    }
+                                }
+                                .padding(.vertical, 8)
+                            }
+                            .buttonStyle(PlainButtonStyle())
+                            .disabled(isExporting)
+                        }
+                    }
                 } else {
                     Section {
                         Text(localizationManager.localizedString("monthNotFound"))
@@ -284,6 +327,24 @@ struct MonthDetailView: View, Identifiable {
             }
             .navigationTitle(month.localizedMonthYear(for: localizationManager.currentLanguage).capitalized)
             .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .navigationBarTrailing) {
+                    Button(action: {
+                        showingSettings = true
+                    }) {
+                        Image(systemName: "gearshape.fill")
+                            .foregroundStyle(.blue)
+                    }
+                }
+            }
+            .sheet(isPresented: $showingShareSheet) {
+                if let csvFileURL = csvFileURL {
+                    ShareSheet(activityItems: [csvFileURL])
+                }
+            }
+            .sheet(isPresented: $showingSettings) {
+                SettingsView()
+            }
             .sheet(item: $editingWorkDay) { workDay in
                 if let report = report {
                     EditWorkDaySheet(viewModel: viewModel, workDay: workDay, report: report, onDismiss: {
@@ -297,6 +358,55 @@ struct MonthDetailView: View, Identifiable {
                 }
             }
         }
+    }
+    
+    // MARK: - CSV Export Functions
+    private func exportToCSV() {
+        guard let report = report, !isExporting else { return }
+        
+        isExporting = true
+        
+        DispatchQueue.global(qos: .userInitiated).async {
+            let csvContent = generateCSVContent(from: report)
+            let fileName = "CestovniVykaz_\(month.formatted(.dateTime.year().month()))"
+            
+            // Použít Documents složku místo temporary directory pro lepší kompatibilitu
+            let documentsPath = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask).first!
+            let fileURL = documentsPath.appendingPathComponent("\(fileName).csv")
+            
+            do {
+                try csvContent.write(to: fileURL, atomically: true, encoding: .utf8)
+                
+                DispatchQueue.main.async {
+                    csvFileURL = fileURL
+                    showingShareSheet = true
+                    isExporting = false
+                }
+            } catch {
+                DispatchQueue.main.async {
+                    isExporting = false
+                    print("Chyba při vytváření CSV: \(error)")
+                }
+            }
+        }
+    }
+    
+    private func generateCSVContent(from report: MonthlyReport) -> String {
+        var csvContent = "Datum,Jízda (h),Práce (h),Kilometry,Město\n"
+        
+        let sortedWorkDays = report.workDays.sorted { $0.date < $1.date }
+        
+        for workDay in sortedWorkDays {
+            let dateString = workDay.date.formatted(.dateTime.day().month().year())
+            let drivingHours = String(format: "%.1f", workDay.drivingHours)
+            let workingHours = String(format: "%.1f", workDay.workingHours)
+            let kilometers = String(format: "%.0f", workDay.kilometers)
+            let city = workDay.city.isEmpty ? "" : workDay.city
+            
+            csvContent += "\(dateString),\(drivingHours),\(workingHours),\(kilometers),\(city)\n"
+        }
+        
+        return csvContent
     }
     
 }
@@ -761,7 +871,7 @@ struct MonthCalendarView: View {
             
             // Dny v měsíci
             LazyVGrid(columns: Array(repeating: GridItem(.flexible()), count: 7), spacing: 4) {
-                ForEach(daysInMonth, id: \.self) { date in
+                ForEach(Array(daysInMonth.enumerated()), id: \.offset) { index, date in
                     if let date = date {
                         DayCell(
                             date: date,
@@ -922,7 +1032,7 @@ struct EmptyMonthCalendarView: View {
             
             // Dny v měsíci
             LazyVGrid(columns: Array(repeating: GridItem(.flexible()), count: 7), spacing: 4) {
-                ForEach(daysInMonth, id: \.self) { date in
+                ForEach(Array(daysInMonth.enumerated()), id: \.offset) { index, date in
                     if let date = date {
                         EmptyDayCell(
                             date: date,
@@ -1118,4 +1228,15 @@ struct DayCell: View {
             return .secondary
         }
     }
+}
+
+// MARK: - ShareSheet Component
+struct ShareSheet: UIViewControllerRepresentable {
+    let activityItems: [Any]
+    
+    func makeUIViewController(context: Context) -> UIActivityViewController {
+        UIActivityViewController(activityItems: activityItems, applicationActivities: nil)
+    }
+    
+    func updateUIViewController(_ uiViewController: UIActivityViewController, context: Context) {}
 } 

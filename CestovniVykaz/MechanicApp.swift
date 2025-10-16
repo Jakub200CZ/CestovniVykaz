@@ -291,7 +291,7 @@ struct WorkDayEntryView: View {
             var updatedCustomer = viewModel.customers[existingCustomerIndex]
             updatedCustomer.city = city
             updatedCustomer.kilometers = Double(kilometers) ?? 0.0
-            updatedCustomer.drivingTime = Double(drivingHours) ?? 0.0
+            updatedCustomer.drivingTime = drivingHours.toDouble() ?? 0.0
             viewModel.updateCustomer(updatedCustomer)
             return updatedCustomer
         }
@@ -301,7 +301,7 @@ struct WorkDayEntryView: View {
             name: customerName,
             city: city,
             kilometers: Double(kilometers) ?? 0.0,
-            drivingTime: Double(drivingHours) ?? 0.0
+            drivingTime: drivingHours.toDouble() ?? 0.0
         )
         viewModel.addCustomer(newCustomer)
         return newCustomer

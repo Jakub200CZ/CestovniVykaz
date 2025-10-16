@@ -261,14 +261,12 @@ struct HomeView: View {
                             }
                             
                             NavigationLink(destination: StatisticsView(viewModel: viewModel, selectedTab: $selectedTab)) {
-                                ActionButton(
+                                ActionButtonContent(
                                     title: localizationManager.localizedString("statistics"),
                                     subtitle: localizationManager.localizedString("hoursKilometersOverview"),
                                     icon: "chart.bar.fill",
                                     color: DesignSystem.Colors.accent
-                                ) {
-                                    // Empty action for NavigationLink
-                                }
+                                )
                             }
                             .buttonStyle(PlainButtonStyle())
                             
