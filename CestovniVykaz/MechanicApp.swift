@@ -286,14 +286,11 @@ struct WorkDayEntryView: View {
     
     private func findOrCreateCustomer() -> Customer? {
         // Najít existujícího zákazníka
-        if let existingCustomerIndex = viewModel.customers.firstIndex(where: { $0.name.lowercased() == customerName.lowercased() }) {
-            // Aktualizovat existujícího zákazníka s novými daty
-            var updatedCustomer = viewModel.customers[existingCustomerIndex]
-            updatedCustomer.city = city
-            updatedCustomer.kilometers = Double(kilometers) ?? 0.0
-            updatedCustomer.drivingTime = drivingHours.toDouble() ?? 0.0
-            viewModel.updateCustomer(updatedCustomer)
-            return updatedCustomer
+        if let existingCustomer = viewModel.customers.first(where: { $0.name.lowercased() == customerName.lowercased() }) {
+            // Vrátit existujícího zákazníka BEZ aktualizace jeho dat
+            // Data zákazníka zůstávají stejná (základní profil)
+            // Pouze se použijí pro vyplnění výkazu
+            return existingCustomer
         }
         
         // Pokud zákazník neexistuje, vytvořit nového

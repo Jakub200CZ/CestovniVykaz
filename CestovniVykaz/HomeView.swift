@@ -265,7 +265,7 @@ struct HomeView: View {
                                     title: localizationManager.localizedString("statistics"),
                                     subtitle: localizationManager.localizedString("hoursKilometersOverview"),
                                     icon: "chart.bar.fill",
-                                    color: DesignSystem.Colors.accent
+                                    color: DesignSystem.Colors.warning
                                 )
                             }
                             .buttonStyle(PlainButtonStyle())

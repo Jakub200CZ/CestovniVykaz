@@ -409,6 +409,14 @@ struct EditCustomerSheet: View {
     @State private var showingValidationAlert = false
     @State private var validationErrors: [String] = []
     @State private var animateForm = false
+    @FocusState private var focusedField: Field?
+    
+    enum Field {
+        case customerName
+        case city
+        case kilometers
+        case drivingTime
+    }
     
     var body: some View {
         NavigationView {
@@ -416,6 +424,7 @@ struct EditCustomerSheet: View {
                 Section("Informace o zákazníkovi") {
                     VStack(alignment: .leading, spacing: 4) {
                         TextField("Jméno zákazníka", text: $customerName)
+                            .focused($focusedField, equals: .customerName)
                             .opacity(animateForm ? 1.0 : 0.0)
                             .offset(y: animateForm ? 0 : 20)
                             .animation(.easeOut(duration: 0.6), value: animateForm)
@@ -427,6 +436,7 @@ struct EditCustomerSheet: View {
                     
                     VStack(alignment: .leading, spacing: 4) {
                         TextField("Město", text: $city)
+                            .focused($focusedField, equals: .city)
                             .opacity(animateForm ? 1.0 : 0.0)
                             .offset(y: animateForm ? 0 : 20)
                             .animation(.easeOut(duration: 0.6).delay(0.2), value: animateForm)
@@ -444,6 +454,7 @@ struct EditCustomerSheet: View {
                         TextField("0", text: $kilometers)
                             .keyboardType(.decimalPad)
                             .multilineTextAlignment(.trailing)
+                            .focused($focusedField, equals: .kilometers)
                         Text(localizationManager.localizedString("km"))
                             .font(.subheadline)
                             .foregroundStyle(.secondary)
@@ -458,6 +469,7 @@ struct EditCustomerSheet: View {
                         TextField("0.0", text: $drivingTime)
                             .keyboardType(.decimalPad)
                             .multilineTextAlignment(.trailing)
+                            .focused($focusedField, equals: .drivingTime)
                         Text(localizationManager.localizedString("hours"))
                             .font(.subheadline)
                             .foregroundStyle(.secondary)
@@ -484,6 +496,10 @@ struct EditCustomerSheet: View {
                     .offset(y: animateForm ? 0 : 20)
                     .animation(.easeOut(duration: 0.6).delay(0.8), value: animateForm)
                 }
+            }
+            .onTapGesture {
+                // Zavřít klávesnici při kliknutí mimo textové pole
+                focusedField = nil
             }
             .navigationTitle("Upravit zákazníka")
             .navigationBarTitleDisplayMode(.inline)
@@ -526,6 +542,9 @@ struct EditCustomerSheet: View {
     }
     
     private func updateCustomer() {
+        // Zavřít klávesnici
+        focusedField = nil
+        
         validationErrors = []
         
         // Validation
