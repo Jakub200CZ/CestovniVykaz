@@ -248,13 +248,13 @@ struct CustomerView: View {
                 
                 Section("Jízda") {
                     HStack {
-                        Text("Město")
+                        Text("Kilometry")
                         Spacer()
                         TextField("0", text: $kilometers)
                             .focused($focusedField, equals: .kilometers)
                             .keyboardType(.decimalPad)
                             .multilineTextAlignment(.trailing)
-                        Text("Město")
+                        Text("Km")
                             .font(.subheadline)
                             .foregroundStyle(.secondary)
                     }
@@ -280,7 +280,7 @@ struct CustomerView: View {
                     Button(action: {
                         saveCustomer()
                     }) {
-                        Text("Město")
+                        Text("Uložit změny")
                             .frame(maxWidth: .infinity)
                             .padding(.vertical, 12)
                             .background(.blue)

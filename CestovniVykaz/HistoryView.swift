@@ -230,15 +230,15 @@ struct MonthDetailView: View, Identifiable {
         List {
                 if let report = report {
                     Section("Přehled měsíce") {
-                        DetailRow(title: "Jízda", value: "\(report.totalDrivingHours.formattedTime(useTimePicker: useTimePicker)) h")
-                        DetailRow(title: "Práce", value: "\(report.totalWorkingHours.formattedTime(useTimePicker: useTimePicker)) h")
-                        DetailRow(title: "Ujeté Km", value: String(format: "%.0f km", report.totalKilometers))
-                        DetailRow(title: "Celkově ujeto", value: "\(report.totalHours.formattedTime(useTimePicker: useTimePicker)) h")
-                        DetailRow(title: "Pracovních dnů", value: "\(report.workDays.count)")
+                        DetailRow(title: "Celkem hodin jízda", value: "\(report.totalDrivingHours.formattedTime(useTimePicker: useTimePicker)) h")
+                        DetailRow(title: "Celkem hodin práce", value: "\(report.totalWorkingHours.formattedTime(useTimePicker: useTimePicker)) h")
+                        DetailRow(title: "Celkem kilometrů", value: String(format: "%.0f km", report.totalKilometers))
+                        DetailRow(title: "Celkem hodin", value: "\(report.totalHours.formattedTime(useTimePicker: useTimePicker)) h")
+                        DetailRow(title: "Počet záznamů", value: "\(report.workDays.count)")
                         
                         // Dny podle typu
                         if report.workingDays > 0 {
-                            DetailRow(title: "Odpracované dny", value: "\(report.workingDays)")
+                            DetailRow(title: "Pracovních dnů", value: "\(report.workingDays)")
                         }
                         if report.vacationDays > 0 {
                             DetailRow(title: "Dovolená", value: "\(report.vacationDays) \("Dny")")

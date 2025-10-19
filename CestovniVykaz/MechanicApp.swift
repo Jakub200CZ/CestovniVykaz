@@ -339,20 +339,10 @@ struct WorkDayEntryView: View {
                             .offset(y: animateForm ? 0 : 20)
                             .animation(.easeOut(duration: 0.6), value: animateForm)
                         
-                        if !isSelectable(selectedDate) {
-                            Text("(víkend/svátek)")
-                                .foregroundStyle(.red)
+                        if hasExistingRecord(for: selectedDate) {
+                            Text("(záznam již existuje)")
+                                .foregroundStyle(.orange)
                                 .font(.caption)
-                        } else if hasExistingRecord(for: selectedDate) {
-                            if isEditingExistingRecord {
-                                Text("(záznam načten)")
-                                    .foregroundStyle(.blue)
-                                    .font(.caption)
-                            } else {
-                                Text("(již má záznam)")
-                                    .foregroundStyle(.orange)
-                                    .font(.caption)
-                            }
                         }
                     }
                     .onChange(of: selectedDate) { _, newDate in
@@ -458,7 +448,7 @@ struct WorkDayEntryView: View {
                     
                     Section("Časové údaje") {
                         TimeInputField(
-                            title: "Čas jízdy",
+                            title: "Doba jízdy",
                             textValue: $drivingHours,
                             timeValue: $drivingTimePicker,
                             useTimePicker: useTimePicker,
@@ -472,7 +462,7 @@ struct WorkDayEntryView: View {
                         .animation(.easeOut(duration: 0.6).delay(0.2), value: animateForm)
                         
                         TimeInputField(
-                            title: "Čas jízdy",
+                            title: "Doba práce",
                             textValue: $workingHours,
                             timeValue: $workingTimePicker,
                             useTimePicker: useTimePicker,
@@ -488,7 +478,7 @@ struct WorkDayEntryView: View {
                     
                     Section("Kilometry a místo") {
                         HStack {
-                            Text("Kilometry")
+                            Text("Ujeté kilometry")
                             Spacer()
                             TextField("0", text: $kilometers)
                                 .keyboardType(.numberPad)
@@ -499,7 +489,7 @@ struct WorkDayEntryView: View {
                         
                         VStack(alignment: .leading, spacing: 8) {
                             HStack {
-                                Text("Kilometry")
+                                Text("Město")
                                 Spacer()
                                 TextField("Zadejte město", text: $city)
                                     .multilineTextAlignment(.trailing)
@@ -573,7 +563,7 @@ struct WorkDayEntryView: View {
                         Button(action: {
                             saveWorkDay()
                         }) {
-                            Text("Kilometry")
+                            Text("Uložit výkaz")
                                 .frame(maxWidth: .infinity)
                                 .padding(.vertical, 12)
                                 .background(.blue)
