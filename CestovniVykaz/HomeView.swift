@@ -12,6 +12,7 @@ struct HomeView: View {
     @ObservedObject var localizationManager = LocalizationManager.shared
     @Binding var selectedTab: Int
     @State private var showingSettings = false
+    @AppStorage("useTimePicker") private var useTimePicker = false
     
     // Computed properties pro aktuální měsíc - stejná logika jako ve StatisticsView
     private var currentMonthReports: [MonthlyReport] {
@@ -191,7 +192,7 @@ struct HomeView: View {
                         HStack(spacing: DesignSystem.Spacing.sm) {
                             StatCard(
                                 title: localizationManager.localizedString("totalHours"),
-                                value: String(format: "%.1f", currentMonthData.totalHours),
+                                value: currentMonthData.totalHours.formattedTime(useTimePicker: useTimePicker),
                                 icon: "clock.fill",
                                 color: DesignSystem.Colors.primary
                             )
@@ -265,7 +266,7 @@ struct HomeView: View {
                                     title: localizationManager.localizedString("statistics"),
                                     subtitle: localizationManager.localizedString("hoursKilometersOverview"),
                                     icon: "chart.bar.fill",
-                                    color: DesignSystem.Colors.warning
+                                    color: DesignSystem.Colors.purple
                                 )
                             }
                             .buttonStyle(PlainButtonStyle())
@@ -292,7 +293,7 @@ struct HomeView: View {
                 }
             }
             .sheet(isPresented: $showingSettings) {
-                SettingsView()
+                SettingsView(viewModel: viewModel)
             }
         }
     }

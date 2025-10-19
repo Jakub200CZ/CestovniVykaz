@@ -52,7 +52,7 @@ struct HistoryView: View {
                 }
             }
             .sheet(isPresented: $showingSettings) {
-                SettingsView()
+                SettingsView(viewModel: viewModel)
             }
             .onAppear {
                 withAnimation(.easeOut(duration: 0.8)) {
@@ -66,6 +66,7 @@ struct HistoryView: View {
 struct MonthlyReportRow: View {
     let report: MonthlyReport
     @ObservedObject var localizationManager = LocalizationManager.shared
+    @AppStorage("useTimePicker") private var useTimePicker = false
     
     // Výpočet pracovních dnů v měsíci (pondělí-pátek)
     var workingDaysInMonth: Int {
@@ -126,8 +127,8 @@ struct MonthlyReportRow: View {
             }
             
             HStack(spacing: 20) {
-                StatItem(title: localizationManager.localizedString("driving"), value: String(format: "%.1f h", report.totalDrivingHours))
-                StatItem(title: localizationManager.localizedString("work"), value: String(format: "%.1f h", report.totalWorkingHours))
+                StatItem(title: localizationManager.localizedString("driving"), value: "\(report.totalDrivingHours.formattedTime(useTimePicker: useTimePicker)) h")
+                StatItem(title: localizationManager.localizedString("work"), value: "\(report.totalWorkingHours.formattedTime(useTimePicker: useTimePicker)) h")
                 StatItem(title: "Km", value: String(format: "%.0f", report.totalKilometers))
                 Spacer()
                 Text(formatDays(report.workDays.count, total: workingDaysInMonth))
@@ -209,6 +210,7 @@ struct MonthDetailView: View, Identifiable {
     @State private var csvFileURL: URL?
     @State private var isExporting = false
     @State private var showingSettings = false
+    @AppStorage("useTimePicker") private var useTimePicker = false
     
     // Get current report data
     var report: MonthlyReport? {
@@ -227,14 +229,13 @@ struct MonthDetailView: View, Identifiable {
     }
     
     var body: some View {
-        NavigationView {
-            List {
+        List {
                 if let report = report {
                     Section(localizationManager.localizedString("monthOverview")) {
-                        DetailRow(title: localizationManager.localizedString("totalDrivingHours"), value: String(format: "%.1f h", report.totalDrivingHours))
-                        DetailRow(title: localizationManager.localizedString("totalWorkingHours"), value: String(format: "%.1f h", report.totalWorkingHours))
+                        DetailRow(title: localizationManager.localizedString("totalDrivingHours"), value: "\(report.totalDrivingHours.formattedTime(useTimePicker: useTimePicker)) h")
+                        DetailRow(title: localizationManager.localizedString("totalWorkingHours"), value: "\(report.totalWorkingHours.formattedTime(useTimePicker: useTimePicker)) h")
                         DetailRow(title: localizationManager.localizedString("totalKilometers"), value: String(format: "%.0f km", report.totalKilometers))
-                        DetailRow(title: localizationManager.localizedString("totalHours"), value: String(format: "%.1f h", report.totalHours))
+                        DetailRow(title: localizationManager.localizedString("totalHours"), value: "\(report.totalHours.formattedTime(useTimePicker: useTimePicker)) h")
                         DetailRow(title: localizationManager.localizedString("recordsCountShort"), value: "\(report.workDays.count)")
                         
                         // Dny podle typu
@@ -343,7 +344,7 @@ struct MonthDetailView: View, Identifiable {
                 }
             }
             .sheet(isPresented: $showingSettings) {
-                SettingsView()
+                SettingsView(viewModel: viewModel)
             }
             .sheet(item: $editingWorkDay) { workDay in
                 if let report = report {
@@ -357,7 +358,6 @@ struct MonthDetailView: View, Identifiable {
                     animateContent = true
                 }
             }
-        }
     }
     
     // MARK: - CSV Export Functions
@@ -398,8 +398,8 @@ struct MonthDetailView: View, Identifiable {
         
         for workDay in sortedWorkDays {
             let dateString = workDay.date.formatted(.dateTime.day().month().year())
-            let drivingHours = String(format: "%.1f", workDay.drivingHours)
-            let workingHours = String(format: "%.1f", workDay.workingHours)
+            let drivingHours = workDay.drivingHours.formattedTime(useTimePicker: useTimePicker)
+            let workingHours = workDay.workingHours.formattedTime(useTimePicker: useTimePicker)
             let kilometers = String(format: "%.0f", workDay.kilometers)
             let city = workDay.city.isEmpty ? "" : workDay.city
             
@@ -429,6 +429,7 @@ struct WorkDayDetailRow: View {
     let workDay: WorkDay
     var onEdit: (() -> Void)? = nil
     @ObservedObject var localizationManager = LocalizationManager.shared
+    @AppStorage("useTimePicker") private var useTimePicker = false
     
     var body: some View {
         VStack(spacing: 12) {
@@ -503,14 +504,14 @@ struct WorkDayDetailRow: View {
                         
                         CompactStatItem(
                             icon: "car.fill",
-                            value: String(format: "%.1f", workDay.drivingHours),
+                            value: workDay.drivingHours.formattedTime(useTimePicker: useTimePicker),
                             unit: "h",
                             color: .blue
                         )
                         
                         CompactStatItem(
                             icon: "wrench.fill",
-                            value: String(format: "%.1f", workDay.workingHours),
+                            value: workDay.workingHours.formattedTime(useTimePicker: useTimePicker),
                             unit: "h",
                             color: .green
                         )
@@ -640,6 +641,10 @@ struct EditWorkDaySheet: View {
     @State private var drivingHoursText: String = ""
     @State private var workingHoursText: String = ""
     @State private var kilometersText: String = ""
+    @State private var drivingTimePicker = Calendar.current.date(from: DateComponents(hour: 1, minute: 11)) ?? Date()
+    @State private var workingTimePicker = Calendar.current.date(from: DateComponents(hour: 1, minute: 11)) ?? Date()
+    @AppStorage("useTimePicker") private var useTimePicker = false
+    @FocusState private var focusedField: Field?
     
     init(viewModel: MechanicViewModel, workDay: WorkDay, report: MonthlyReport, onDismiss: @escaping () -> Void) {
         self.viewModel = viewModel
@@ -649,11 +654,29 @@ struct EditWorkDaySheet: View {
         self._drivingHoursText = State(initialValue: String(format: "%.1f", workDay.drivingHours))
         self._workingHoursText = State(initialValue: String(format: "%.1f", workDay.workingHours))
         self._kilometersText = State(initialValue: String(format: "%.0f", workDay.kilometers))
+        
+        // Inicializovat time picker hodnoty
+        let calendar = Calendar.current
+        
+        // Driving time picker
+        let drivingHours = Int(workDay.drivingHours)
+        let drivingMinutes = Int((workDay.drivingHours - Double(drivingHours)) * 60)
+        var drivingComponents = DateComponents()
+        drivingComponents.hour = drivingHours
+        drivingComponents.minute = drivingMinutes
+        self._drivingTimePicker = State(initialValue: calendar.date(from: drivingComponents) ?? Date())
+        
+        // Working time picker
+        let workingHours = Int(workDay.workingHours)
+        let workingMinutes = Int((workDay.workingHours - Double(workingHours)) * 60)
+        var workingComponents = DateComponents()
+        workingComponents.hour = workingHours
+        workingComponents.minute = workingMinutes
+        self._workingTimePicker = State(initialValue: calendar.date(from: workingComponents) ?? Date())
     }
     
     var body: some View {
-        NavigationView {
-            Form {
+        Form {
                 VStack(alignment: .leading, spacing: 4) {
                     DatePicker("Datum", selection: $workDay.date, displayedComponents: .date)
                     
@@ -667,20 +690,24 @@ struct EditWorkDaySheet: View {
                             .font(.caption)
                     }
                 }
-                HStack {
-                    Text(localizationManager.localizedString("drivingTime"))
-                    Spacer()
-                    TextField("0.0h", text: $drivingHoursText)
-                        .keyboardType(.decimalPad)
-                        .multilineTextAlignment(.trailing)
-                }
-                HStack {
-                    Text(localizationManager.localizedString("workingTime"))
-                    Spacer()
-                    TextField("0.0h", text: $workingHoursText)
-                        .keyboardType(.decimalPad)
-                        .multilineTextAlignment(.trailing)
-                }
+                TimeInputField(
+                    title: localizationManager.localizedString("drivingTime"),
+                    textValue: $drivingHoursText,
+                    timeValue: $drivingTimePicker,
+                    useTimePicker: useTimePicker,
+                    placeholder: "0.0h",
+                    focusedField: $focusedField,
+                    field: .drivingHours
+                )
+                TimeInputField(
+                    title: localizationManager.localizedString("workingTime"),
+                    textValue: $workingHoursText,
+                    timeValue: $workingTimePicker,
+                    useTimePicker: useTimePicker,
+                    placeholder: "0.0h",
+                    focusedField: $focusedField,
+                    field: .workingHours
+                )
                 HStack {
                     Text(localizationManager.localizedString("kilometers"))
                     Spacer()
@@ -706,17 +733,8 @@ struct EditWorkDaySheet: View {
                 }
             }
             .navigationTitle("Upravit záznam")
-            .navigationBarBackButtonHidden(true)
+            .navigationBarTitleDisplayMode(.inline)
             .toolbar {
-                ToolbarItem(placement: .navigationBarLeading) {
-                    Button(action: {
-                        // NavigationStack will handle going back
-                    }) {
-                        Image(systemName: "chevron.left")
-                            .font(.system(size: 16, weight: .medium))
-                            .foregroundStyle(.blue)
-                    }
-                }
                 ToolbarItem(placement: .navigationBarTrailing) {
                     Button(action: {
                         if validate() {
@@ -737,7 +755,6 @@ struct EditWorkDaySheet: View {
                     .buttonStyle(PlainButtonStyle())
                 }
             }
-        }
     }
     
     private func validate() -> Bool {

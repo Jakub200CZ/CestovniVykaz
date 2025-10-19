@@ -113,7 +113,7 @@ struct CustomerView: View {
                 }
             }
             .sheet(isPresented: $showingSettings) {
-                SettingsView()
+                SettingsView(viewModel: viewModel)
             }
             .onAppear {
                 withAnimation(.easeOut(duration: 0.8)) {
@@ -122,111 +122,105 @@ struct CustomerView: View {
             }
         }
     }
-}
-
-// MARK: - Customer Row
-struct CustomerRow: View {
-    let customer: Customer
-    @ObservedObject var viewModel: MechanicViewModel
-    @Binding var selectedTab: Int
-    @State private var showingDeleteConfirmation = false
-    @ObservedObject var localizationManager = LocalizationManager.shared
     
-    var body: some View {
-        NavigationLink(destination: EditCustomerSheet(customer: customer, viewModel: viewModel, selectedTab: $selectedTab)) {
-            HStack(spacing: 16) {
-                // People icon (left side)
-                Image(systemName: "person.2.fill")
-                    .font(.title2)
-                    .foregroundStyle(.blue)
-                    .frame(width: 24, height: 24)
-                
-                // Customer info
-                VStack(alignment: .leading, spacing: 4) {
-                    Text(customer.name)
-                        .font(.headline)
-                        .fontWeight(.medium)
-                        .foregroundStyle(.primary)
-                        .lineLimit(1)
+    // MARK: - Customer Row
+    struct CustomerRow: View {
+        let customer: Customer
+        @ObservedObject var viewModel: MechanicViewModel
+        @Binding var selectedTab: Int
+        @State private var showingDeleteConfirmation = false
+        @ObservedObject var localizationManager = LocalizationManager.shared
+        @AppStorage("useTimePicker") private var useTimePicker = false
+        
+        var body: some View {
+            NavigationLink(destination: EditCustomerSheet(customer: customer, viewModel: viewModel, selectedTab: $selectedTab)) {
+                HStack(spacing: 16) {
+                    // People icon (left side)
+                    Image(systemName: "person.2.fill")
+                        .font(.title2)
+                        .foregroundStyle(.blue)
+                        .frame(width: 24, height: 24)
                     
-                    Text(customer.city)
-                        .font(.subheadline)
-                        .foregroundStyle(.secondary)
-                        .lineLimit(1)
-                }
-                
-                Spacer()
-                
-                // Statistics
-                VStack(alignment: .trailing, spacing: 2) {
-                    Text(String(format: "%.0f km", customer.kilometers))
-                        .font(.subheadline)
-                        .fontWeight(.medium)
-                        .foregroundStyle(.primary)
+                    // Customer info
+                    VStack(alignment: .leading, spacing: 4) {
+                        Text(customer.name)
+                            .font(.headline)
+                            .fontWeight(.medium)
+                            .foregroundStyle(.primary)
+                            .lineLimit(1)
+                        
+                        Text(customer.city)
+                            .font(.subheadline)
+                            .foregroundStyle(.secondary)
+                            .lineLimit(1)
+                    }
                     
-                    Text(String(format: "%.1f h", customer.drivingTime))
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
+                    Spacer()
+                    
+                    // Statistics
+                    VStack(alignment: .trailing, spacing: 2) {
+                        Text(String(format: "%.0f km", customer.kilometers))
+                            .font(.subheadline)
+                            .fontWeight(.medium)
+                            .foregroundStyle(.primary)
+                        
+                        Text(customer.drivingTime.formattedTime(useTimePicker: useTimePicker) + " h")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    }
+                    .frame(minWidth: 60, alignment: .trailing)
+                    
+                    // Navigation arrow
+                    //Image(systemName: "chevron.right")
+                    //    .font(.caption)
+                    //    .foregroundStyle(.secondary)
                 }
-                .frame(minWidth: 60, alignment: .trailing)
-                
-                // Navigation arrow
-                //Image(systemName: "chevron.right")
-                //    .font(.caption)
-                //    .foregroundStyle(.secondary)
             }
-        }
-        .buttonStyle(PlainButtonStyle())
-        .padding()
-        .background(.regularMaterial)
-        .clipShape(RoundedRectangle(cornerRadius: 12))
-        .swipeActions(edge: .trailing, allowsFullSwipe: false) {
-            Button(role: .cancel) {
-                showingDeleteConfirmation = true
-            } label: {
-                Label(localizationManager.localizedString("delete"), systemImage: "trash")
-                    .foregroundColor(.red)
+            .buttonStyle(PlainButtonStyle())
+            .padding()
+            .background(.regularMaterial)
+            .clipShape(RoundedRectangle(cornerRadius: 12))
+            .swipeActions(edge: .trailing, allowsFullSwipe: false) {
+                Button(role: .cancel) {
+                    showingDeleteConfirmation = true
+                } label: {
+                    Label(localizationManager.localizedString("delete"), systemImage: "trash")
+                        .foregroundColor(.red)
+                }
             }
-        }
-        .confirmationDialog("Smazat zákazníka", isPresented: $showingDeleteConfirmation, titleVisibility: .visible) {
-            Button("Zrušit", role: .cancel) { 
-                showingDeleteConfirmation = false
+            .confirmationDialog("Smazat zákazníka", isPresented: $showingDeleteConfirmation, titleVisibility: .visible) {
+                Button("Zrušit", role: .cancel) {
+                    showingDeleteConfirmation = false
+                }
+                Button(localizationManager.localizedString("delete"), role: .destructive) {
+                    viewModel.deleteCustomer(customer)
+                    showingDeleteConfirmation = false
+                }
+            } message: {
+                Text(localizationManager.localizedString("confirmDeleteCustomer").replacingOccurrences(of: "{name}", with: customer.name))
             }
-            Button(localizationManager.localizedString("delete"), role: .destructive) {
-                viewModel.deleteCustomer(customer)
-                showingDeleteConfirmation = false
-            }
-        } message: {
-            Text(localizationManager.localizedString("confirmDeleteCustomer").replacingOccurrences(of: "{name}", with: customer.name))
         }
     }
-}
-
-// MARK: - Add Customer Sheet
-struct AddCustomerSheet: View {
-    @ObservedObject var viewModel: MechanicViewModel
-    @Binding var selectedTab: Int
-    @Environment(\.dismiss) private var dismiss
-    @ObservedObject var localizationManager = LocalizationManager.shared
-    @State private var customerName = ""
-    @State private var city = ""
-    @State private var kilometers = ""
-    @State private var drivingTime = ""
-    @State private var showingSuccessAlert = false
-    @State private var showingValidationAlert = false
-    @State private var validationErrors: [String] = []
-    @State private var animateForm = false
-    @FocusState private var focusedField: Field?
     
-    enum Field {
-        case customerName
-        case city
-        case kilometers
-        case drivingTime
-    }
-    
-    var body: some View {
-        NavigationView {
+    // MARK: - Add Customer Sheet
+    struct AddCustomerSheet: View {
+        @ObservedObject var viewModel: MechanicViewModel
+        @Binding var selectedTab: Int
+        @Environment(\.dismiss) private var dismiss
+        @ObservedObject var localizationManager = LocalizationManager.shared
+        @State private var customerName = ""
+        @State private var city = ""
+        @State private var kilometers = ""
+        @State private var drivingTime = ""
+        @State private var showingSuccessAlert = false
+        @State private var showingValidationAlert = false
+        @State private var validationErrors: [String] = []
+        @State private var animateForm = false
+        @State private var drivingTimePicker = Calendar.current.date(from: DateComponents(hour: 1, minute: 11)) ?? Date()
+        @AppStorage("useTimePicker") private var useTimePicker = false
+        @FocusState private var focusedField: Field?
+        
+        var body: some View {
             Form {
                 Section("Informace o zákazníkovi") {
                     VStack(alignment: .leading, spacing: 4) {
@@ -270,17 +264,15 @@ struct AddCustomerSheet: View {
                     .offset(y: animateForm ? 0 : 20)
                     .animation(.easeOut(duration: 0.6).delay(0.4), value: animateForm)
                     
-                    HStack {
-                        Text(localizationManager.localizedString("customerDrivingTime"))
-                        Spacer()
-                        TextField("0.0", text: $drivingTime)
-                            .focused($focusedField, equals: .drivingTime)
-                            .keyboardType(.decimalPad)
-                            .multilineTextAlignment(.trailing)
-                        Text(localizationManager.localizedString("hours"))
-                            .font(.subheadline)
-                            .foregroundStyle(.secondary)
-                    }
+                    TimeInputField(
+                        title: localizationManager.localizedString("customerDrivingTime"),
+                        textValue: $drivingTime,
+                        timeValue: $drivingTimePicker,
+                        useTimePicker: useTimePicker,
+                        placeholder: "0.0",
+                        focusedField: $focusedField,
+                        field: .drivingTime
+                    )
                     .opacity(animateForm ? 1.0 : 0.0)
                     .offset(y: animateForm ? 0 : 20)
                     .animation(.easeOut(duration: 0.6).delay(0.6), value: animateForm)
@@ -336,90 +328,83 @@ struct AddCustomerSheet: View {
                 }
             }
         }
+        
+        private func saveCustomer() {
+            // Zavřít klávesnici
+            focusedField = nil
+            
+            validationErrors = []
+            
+            // Validation
+            if customerName.isEmpty {
+                validationErrors.append("Vyplňte jméno zákazníka")
+            }
+            
+            if city.isEmpty {
+                validationErrors.append("Vyplňte město")
+            }
+            
+            if kilometers.isEmpty {
+                validationErrors.append("Vyplňte počet kilometrů")
+            }
+            
+            if drivingTime.isEmpty {
+                validationErrors.append("Vyplňte čas jízdy")
+            }
+            
+            if let km = kilometers.toDouble(), km <= 0 {
+                validationErrors.append("Počet kilometrů musí být větší než 0")
+            }
+            
+            if let time = drivingTime.toDouble(), time <= 0 {
+                validationErrors.append("Čas jízdy musí být větší než 0")
+            }
+            
+            if !validationErrors.isEmpty {
+                showingValidationAlert = true
+                return
+            }
+            
+            // Create and save customer
+            let customer = Customer(
+                name: customerName,
+                city: city,
+                kilometers: kilometers.toDouble() ?? 0,
+                drivingTime: drivingTime.toDouble() ?? 0
+            )
+            
+            viewModel.addCustomer(customer)
+            showingSuccessAlert = true
+        }
+        
+        private func clearForm() {
+            customerName = ""
+            city = ""
+            kilometers = ""
+            drivingTime = ""
+        }
     }
     
-    private func saveCustomer() {
-        // Zavřít klávesnici
-        focusedField = nil
+    // MARK: - Edit Customer Sheet
+    struct EditCustomerSheet: View {
+        let customer: Customer
+        @ObservedObject var viewModel: MechanicViewModel
+        @Binding var selectedTab: Int
+        @Environment(\.dismiss) private var dismiss
+        @ObservedObject var localizationManager = LocalizationManager.shared
+        @State private var customerName = ""
+        @State private var city = ""
+        @State private var kilometers = ""
+        @State private var drivingTime = ""
+        @State private var showingSuccessAlert = false
+        @State private var showingValidationAlert = false
+        @State private var validationErrors: [String] = []
+        @State private var animateForm = false
+        @State private var drivingTimePicker = Calendar.current.date(from: DateComponents(hour: 1, minute: 11)) ?? Date()
+        @AppStorage("useTimePicker") private var useTimePicker = false
+        @FocusState private var focusedField: Field?
         
-        validationErrors = []
-        
-        // Validation
-        if customerName.isEmpty {
-            validationErrors.append("Vyplňte jméno zákazníka")
-        }
-        
-        if city.isEmpty {
-            validationErrors.append("Vyplňte město")
-        }
-        
-        if kilometers.isEmpty {
-            validationErrors.append("Vyplňte počet kilometrů")
-        }
-        
-        if drivingTime.isEmpty {
-            validationErrors.append("Vyplňte čas jízdy")
-        }
-        
-        if let km = kilometers.toDouble(), km <= 0 {
-            validationErrors.append("Počet kilometrů musí být větší než 0")
-        }
-        
-        if let time = drivingTime.toDouble(), time <= 0 {
-            validationErrors.append("Čas jízdy musí být větší než 0")
-        }
-        
-        if !validationErrors.isEmpty {
-            showingValidationAlert = true
-            return
-        }
-        
-        // Create and save customer
-        let customer = Customer(
-            name: customerName,
-            city: city,
-            kilometers: kilometers.toDouble() ?? 0,
-            drivingTime: drivingTime.toDouble() ?? 0
-        )
-        
-        viewModel.addCustomer(customer)
-        showingSuccessAlert = true
-    }
-    
-    private func clearForm() {
-        customerName = ""
-        city = ""
-        kilometers = ""
-        drivingTime = ""
-    }
-}
-
-// MARK: - Edit Customer Sheet
-struct EditCustomerSheet: View {
-    let customer: Customer
-    @ObservedObject var viewModel: MechanicViewModel
-    @Binding var selectedTab: Int
-    @Environment(\.dismiss) private var dismiss
-    @ObservedObject var localizationManager = LocalizationManager.shared
-    @State private var customerName = ""
-    @State private var city = ""
-    @State private var kilometers = ""
-    @State private var drivingTime = ""
-    @State private var showingSuccessAlert = false
-    @State private var showingValidationAlert = false
-    @State private var validationErrors: [String] = []
-    @State private var animateForm = false
-    @FocusState private var focusedField: Field?
-    
-    enum Field {
-        case customerName
-        case city
-        case kilometers
-        case drivingTime
-    }
-    
-    var body: some View {
-        NavigationView {
+        var body: some View {
             Form {
                 Section("Informace o zákazníkovi") {
                     VStack(alignment: .leading, spacing: 4) {
@@ -463,17 +448,15 @@ struct EditCustomerSheet: View {
                     .offset(y: animateForm ? 0 : 20)
                     .animation(.easeOut(duration: 0.6).delay(0.4), value: animateForm)
                     
-                    HStack {
-                        Text(localizationManager.localizedString("customerDrivingTime"))
-                        Spacer()
-                        TextField("0.0", text: $drivingTime)
-                            .keyboardType(.decimalPad)
-                            .multilineTextAlignment(.trailing)
-                            .focused($focusedField, equals: .drivingTime)
-                        Text(localizationManager.localizedString("hours"))
-                            .font(.subheadline)
-                            .foregroundStyle(.secondary)
-                    }
+                    TimeInputField(
+                        title: localizationManager.localizedString("customerDrivingTime"),
+                        textValue: $drivingTime,
+                        timeValue: $drivingTimePicker,
+                        useTimePicker: useTimePicker,
+                        placeholder: "0.0",
+                        focusedField: $focusedField,
+                        field: .drivingTime
+                    )
                     .opacity(animateForm ? 1.0 : 0.0)
                     .offset(y: animateForm ? 0 : 20)
                     .animation(.easeOut(duration: 0.6).delay(0.6), value: animateForm)
@@ -534,61 +517,75 @@ struct EditCustomerSheet: View {
                 kilometers = String(format: "%.0f", customer.kilometers)
                 drivingTime = String(format: "%.1f", customer.drivingTime)
                 
+                // Aktualizovat time picker hodnoty
+                updateTimePickerValues()
+                
                 withAnimation(.easeOut(duration: 0.8)) {
                     animateForm = true
                 }
             }
         }
+        
+        private func updateTimePickerValues() {
+            // Převést desetinné hodiny na čas pro time picker
+            if let decimalHours = drivingTime.toDouble() {
+                let hours = Int(decimalHours)
+                let minutes = Int((decimalHours - Double(hours)) * 60)
+                let calendar = Calendar.current
+                var components = DateComponents()
+                components.hour = hours
+                components.minute = minutes
+                if let date = calendar.date(from: components) {
+                    drivingTimePicker = date
+                }
+            }
+        }
+        
+        private func updateCustomer() {
+            // Zavřít klávesnici
+            focusedField = nil
+            
+            validationErrors = []
+            
+            // Validation
+            if customerName.isEmpty {
+                validationErrors.append("Vyplňte jméno zákazníka")
+            }
+            
+            if city.isEmpty {
+                validationErrors.append("Vyplňte město")
+            }
+            
+            if kilometers.isEmpty {
+                validationErrors.append("Vyplňte počet kilometrů")
+            }
+            
+            if drivingTime.isEmpty {
+                validationErrors.append("Vyplňte čas jízdy")
+            }
+            
+            if let km = kilometers.toDouble(), km <= 0 {
+                validationErrors.append("Počet kilometrů musí být větší než 0")
+            }
+            
+            if let time = drivingTime.toDouble(), time <= 0 {
+                validationErrors.append("Čas jízdy musí být větší než 0")
+            }
+            
+            if !validationErrors.isEmpty {
+                showingValidationAlert = true
+                return
+            }
+            
+            // Update customer
+            var updatedCustomer = customer
+            updatedCustomer.name = customerName
+            updatedCustomer.city = city
+            updatedCustomer.kilometers = kilometers.toDouble() ?? 0
+            updatedCustomer.drivingTime = drivingTime.toDouble() ?? 0
+            
+            viewModel.updateCustomer(updatedCustomer)
+            showingSuccessAlert = true
+        }
     }
-    
-    private func updateCustomer() {
-        // Zavřít klávesnici
-        focusedField = nil
-        
-        validationErrors = []
-        
-        // Validation
-        if customerName.isEmpty {
-            validationErrors.append("Vyplňte jméno zákazníka")
-        }
-        
-        if city.isEmpty {
-            validationErrors.append("Vyplňte město")
-        }
-        
-        if kilometers.isEmpty {
-            validationErrors.append("Vyplňte počet kilometrů")
-        }
-        
-        if drivingTime.isEmpty {
-            validationErrors.append("Vyplňte čas jízdy")
-        }
-        
-        if let km = kilometers.toDouble(), km <= 0 {
-            validationErrors.append("Počet kilometrů musí být větší než 0")
-        }
-        
-        if let time = drivingTime.toDouble(), time <= 0 {
-            validationErrors.append("Čas jízdy musí být větší než 0")
-        }
-        
-        if !validationErrors.isEmpty {
-            showingValidationAlert = true
-            return
-        }
-        
-        // Update customer
-        var updatedCustomer = customer
-        updatedCustomer.name = customerName
-        updatedCustomer.city = city
-        updatedCustomer.kilometers = kilometers.toDouble() ?? 0
-        updatedCustomer.drivingTime = drivingTime.toDouble() ?? 0
-        
-        viewModel.updateCustomer(updatedCustomer)
-        showingSuccessAlert = true
-    }
-}
-
-#Preview {
-    CustomerView(viewModel: MechanicViewModel(), selectedTab: .constant(0))
 }

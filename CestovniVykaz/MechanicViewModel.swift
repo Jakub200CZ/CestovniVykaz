@@ -282,7 +282,11 @@ class MechanicViewModel: ObservableObject {
     func clearAllData() {
         monthlyReports = []
         currentMonthReport = nil
+        fuelEntries = []
+        customers = []
         userDefaults.removeObject(forKey: monthlyReportsKey)
+        userDefaults.removeObject(forKey: fuelEntriesKey)
+        userDefaults.removeObject(forKey: customersKey)
         setupCurrentMonth()
     }
     
@@ -292,22 +296,57 @@ class MechanicViewModel: ObservableObject {
         let calendar = Calendar.current
         let now = Date()
         
-        // Generate data for current month and last 3 months (4 months total)
-        for monthOffset in 0...3 {
+        // Generate data for last 3 months
+        for monthOffset in 1...3 {
             if let monthDate = calendar.date(byAdding: .month, value: -monthOffset, to: now) {
                 let monthStart = calendar.dateInterval(of: .month, for: monthDate)?.start ?? monthDate
                 var monthlyReport = MonthlyReport(month: monthStart)
                 
                 // Generate work days for this month
                 let range = calendar.range(of: .day, in: .month, for: monthStart) ?? 1..<29
+                var workDaysCount = 0
+                var vacationDaysCount = 0
+                var sickDaysCount = 0
+                
                 for day in range {
                     if let date = calendar.date(byAdding: .day, value: day - 1, to: monthStart) {
                         let weekday = calendar.component(.weekday, from: date)
                         // Only add work days (Monday-Friday)
                         if weekday != 1 && weekday != 7 { // 1 = Sunday, 7 = Saturday
-                            // Vždy přidat pracovní den (100% šance)
-                            let workDay = generateRealisticWorkDay(for: date)
-                            monthlyReport.workDays.append(workDay)
+                            workDaysCount += 1
+                            
+                            // 1 den dovolené a 1 den lékaře za měsíc
+                            if vacationDaysCount < 1 && Double.random(in: 0...1) < 0.1 {
+                                let vacationDay = WorkDay(
+                                    date: date,
+                                    drivingHours: 0.0,
+                                    workingHours: 0.0,
+                                    kilometers: 0.0,
+                                    city: "",
+                                    notes: "Dovolená",
+                                    isCompleted: true,
+                                    dayType: .vacation
+                                )
+                                monthlyReport.workDays.append(vacationDay)
+                                vacationDaysCount += 1
+                            } else if sickDaysCount < 1 && Double.random(in: 0...1) < 0.1 {
+                                let sickDay = WorkDay(
+                                    date: date,
+                                    drivingHours: 0.0,
+                                    workingHours: 0.0,
+                                    kilometers: 0.0,
+                                    city: "",
+                                    notes: "Lékař",
+                                    isCompleted: true,
+                                    dayType: .sick
+                                )
+                                monthlyReport.workDays.append(sickDay)
+                                sickDaysCount += 1
+                            } else {
+                                // Normální pracovní den
+                                let workDay = generateRealisticWorkDay(for: date)
+                                monthlyReport.workDays.append(workDay)
+                            }
                         }
                     }
                 }
@@ -326,7 +365,6 @@ class MechanicViewModel: ObservableObject {
             self.loadMonthlyReports()
             self.setupCurrentMonth()
         }
-        
     }
     
     private func generateRealisticWorkDay(for date: Date) -> WorkDay {
@@ -356,14 +394,15 @@ class MechanicViewModel: ObservableObject {
             )
         }
         
-        // Realistické časové rozmezí
-        let totalHours = Double.random(in: 4...15)
-        let drivingRatio = Double.random(in: 0.2...0.6) // 20-60% jízdy
-        let drivingHours = totalHours * drivingRatio
-        let workingHours = totalHours - drivingHours
+        // Celkové hodiny: 180-220h rozdělit na měsíc (cca 20 pracovních dnů) = 9-11h denně
+        let totalHours = Double.random(in: 9...11)
         
-        // Realistické kilometry (průměrně 50-200 km denně)
-        let kilometers = Double.random(in: 50...200)
+        // 80% práce, 20% jízda
+        let workingHours = totalHours * 0.8
+        let drivingHours = totalHours * 0.2
+        
+        // Kilometry: průměrná rychlost 70km/h * hodiny jízdy
+        let kilometers = drivingHours * 70
         
         // Náhodné město z ČR
         let cities = [
@@ -386,14 +425,14 @@ class MechanicViewModel: ObservableObject {
         
         // Náhodné poznámky
         let notes = [
-            "Oprava strojů", "Údržba zařízení", "Kontrola systému", "Instalace nového vybavení",
-            "Preventivní údržba", "Oprava hydrauliky", "Seřízení motoru", "Kontrola elektroinstalace",
-            "Výměna součástek", "Diagnostika poruchy", "Čištění filtrů", "Kontrola tlaků",
-            "Oprava pneumatiky", "Seřízení brzd", "Kontrola oleje", "Výměna oleje",
-            "Oprava chlazení", "Kontrola baterie", "Seřízení vstřikování", "Oprava převodovky"
+            "Oprava klimatizace", "Výměna oleje", "Kontrola brzd", "Oprava motoru",
+            "Výměna filtrů", "Kontrola elektroinstalace", "Oprava převodovky", "Výměna svíček",
+            "Kontrola tlaku v pneumatikách", "Oprava startéru", "Výměna baterie", "Kontrola světel",
+            "Oprava topení", "Výměna kapalin", "Kontrola výfuku", "Oprava řízení",
+            "Výměna řemenů", "Kontrola spojky", "Oprava brzd", "Výměna pneumatik"
         ]
         
-        let randomNote = notes.randomElement() ?? ""
+        let randomNote = notes.randomElement() ?? "Oprava vozidla"
         
         return WorkDay(
             date: date,
@@ -549,6 +588,57 @@ class MechanicViewModel: ObservableObject {
                 notificationManager.scheduleDailyReminder()
             }
         }
+    }
+    
+    // MARK: - Debug Functions
+    func generateCurrentMonthData() {
+        let calendar = Calendar.current
+        let now = Date()
+        let currentMonth = calendar.dateInterval(of: .month, for: now)?.start ?? now
+        
+        // Generovat data pouze pro aktuální měsíc
+        let workDays = generateWorkDaysForMonth(currentMonth)
+        
+        // Přidat do existujícího reportu nebo vytvořit nový
+        if let existingReportIndex = monthlyReports.firstIndex(where: { 
+            calendar.isDate($0.month, equalTo: currentMonth, toGranularity: .month) 
+        }) {
+            // Přidat k existujícímu reportu
+            monthlyReports[existingReportIndex].workDays.append(contentsOf: workDays)
+        } else {
+            // Vytvořit nový report
+            var newReport = MonthlyReport(month: currentMonth)
+            newReport.workDays = workDays
+            monthlyReports.append(newReport)
+        }
+        
+        saveMonthlyReports()
+    }
+    
+    private func generateWorkDaysForMonth(_ month: Date) -> [WorkDay] {
+        let calendar = Calendar.current
+        let range = calendar.range(of: .day, in: .month, for: month) ?? 1..<29
+        let monthComponent = calendar.component(.month, from: month)
+        let yearComponent = calendar.component(.year, from: month)
+        
+        var workDays: [WorkDay] = []
+        
+        for day in range {
+            var comps = DateComponents()
+            comps.year = yearComponent
+            comps.month = monthComponent
+            comps.day = day
+            
+            if let date = calendar.date(from: comps) {
+                // Pouze pracovní dny (pondělí-pátek)
+                if calendar.component(.weekday, from: date) >= 2 && calendar.component(.weekday, from: date) <= 6 {
+                    let workDay = generateRealisticWorkDay(for: date)
+                    workDays.append(workDay)
+                }
+            }
+        }
+        
+        return workDays
     }
     
     // MARK: - Widget Data Management

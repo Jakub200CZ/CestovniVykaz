@@ -33,6 +33,7 @@ struct DesignSystem {
         static let warning = Color.orange
         static let error = Color.red
         static let info = Color.blue
+        static let purple = Color.purple
         
         // Neutral colors
         static let background = Color(.systemBackground)

@@ -114,16 +114,10 @@ struct WorkDayEntryView: View {
     @State private var showingDatePicker = false
     @State private var animateForm = false
     @State private var showingSettings = false
+    @State private var drivingTimePicker = Calendar.current.date(from: DateComponents(hour: 1, minute: 11)) ?? Date()
+    @State private var workingTimePicker = Calendar.current.date(from: DateComponents(hour: 1, minute: 11)) ?? Date()
+    @AppStorage("useTimePicker") private var useTimePicker = false
     @FocusState private var focusedField: Field?
-    
-    enum Field {
-        case customerName
-        case drivingHours
-        case workingHours
-        case kilometers
-        case city
-        case notes
-    }
     
     // Kontrola, zda je datum pracovní den (pondělí-pátek)
     private func isWorkDay(_ date: Date) -> Bool {
@@ -280,8 +274,16 @@ struct WorkDayEntryView: View {
         city = customer.city
         kilometers = String(customer.kilometers)
         drivingHours = String(customer.drivingTime)
+        
+        // Aktualizovat time picker pokud je zapnutý
+        if useTimePicker {
+            updateTimePickerValues()
+        }
+        
+        // Zavřít klávesnici a našeptávání
         showingCustomerSuggestions = false
         isSelectingSuggestion = true
+        focusedField = nil // Zavře klávesnici
     }
     
     private func findOrCreateCustomer() -> Customer? {
@@ -411,10 +413,14 @@ struct WorkDayEntryView: View {
                                         }
                                     }
                                     .onChange(of: customerName) { _, newValue in
+                                        // Pouze pokud uživatel skutečně píše (ne automatické doplňování)
                                         if !isSelectingSuggestion {
                                             showingCustomerSuggestions = !newValue.isEmpty && !filteredCustomers.isEmpty
                                         }
-                                        isSelectingSuggestion = false
+                                        // Resetovat flag s malým zpožděním
+                                        DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
+                                            isSelectingSuggestion = false
+                                        }
                                     }
                             }
                             
@@ -430,7 +436,7 @@ struct WorkDayEntryView: View {
                                                     Text(customer.name)
                                                         .foregroundStyle(.primary)
                                                         .font(.system(size: 16, weight: .medium))
-                                                    Text("\(String(format: "%.0f", customer.kilometers)) km • \(String(format: "%.1f", customer.drivingTime))h")
+                                                    Text("\(String(format: "%.0f", customer.kilometers)) km • \(customer.drivingTime.formattedTime(useTimePicker: useTimePicker))h")
                                                         .foregroundStyle(.secondary)
                                                         .font(.system(size: 14))
                                                 }
@@ -453,28 +459,30 @@ struct WorkDayEntryView: View {
                     }
                     
                     Section("Časové údaje") {
-                        HStack {
-                            Text(localizationManager.localizedString("drivingTime"))
-                            Spacer()
-                            TextField("0.0h", text: $drivingHours)
-                                .keyboardType(.decimalPad)
-                                .multilineTextAlignment(.trailing)
-                                .disabled(isEditingExistingRecord)
-                                .focused($focusedField, equals: .drivingHours)
-                        }
+                        TimeInputField(
+                            title: localizationManager.localizedString("drivingTime"),
+                            textValue: $drivingHours,
+                            timeValue: $drivingTimePicker,
+                            useTimePicker: useTimePicker,
+                            placeholder: "0.0h",
+                            focusedField: $focusedField,
+                            field: .drivingHours,
+                            disabled: isEditingExistingRecord
+                        )
                         .opacity(animateForm ? 1.0 : 0.0)
                         .offset(y: animateForm ? 0 : 20)
                         .animation(.easeOut(duration: 0.6).delay(0.2), value: animateForm)
                         
-                        HStack {
-                            Text(localizationManager.localizedString("workingTime"))
-                            Spacer()
-                            TextField("0.0h", text: $workingHours)
-                                .keyboardType(.decimalPad)
-                                .multilineTextAlignment(.trailing)
-                                .disabled(isEditingExistingRecord)
-                                .focused($focusedField, equals: .workingHours)
-                        }
+                        TimeInputField(
+                            title: localizationManager.localizedString("workingTime"),
+                            textValue: $workingHours,
+                            timeValue: $workingTimePicker,
+                            useTimePicker: useTimePicker,
+                            placeholder: "0.0h",
+                            focusedField: $focusedField,
+                            field: .workingHours,
+                            disabled: isEditingExistingRecord
+                        )
                         .opacity(animateForm ? 1.0 : 0.0)
                         .offset(y: animateForm ? 0 : 20)
                         .animation(.easeOut(duration: 0.6).delay(0.4), value: animateForm)
@@ -600,7 +608,7 @@ struct WorkDayEntryView: View {
             .tint(.blue) // změní barvu i ikonky zpět
 
             .sheet(isPresented: $showingSettings) {
-                SettingsView()
+                SettingsView(viewModel: viewModel)
             }
             .background(
                 Color.clear
@@ -750,6 +758,9 @@ struct WorkDayEntryView: View {
                 notes = workDay.notes
                 selectedDayType = workDay.dayType
                 
+                // Aktualizovat time picker hodnoty
+                updateTimePickerValues()
+                
             } else {
                 // WorkDay nebyl nalezen v reportu
             }
@@ -766,6 +777,34 @@ struct WorkDayEntryView: View {
         city = ""
         notes = ""
         selectedDayType = .work
+        updateTimePickerValues()
+    }
+    
+    private func updateTimePickerValues() {
+        // Převést desetinné hodiny na čas pro time picker
+        if let drivingDecimalHours = drivingHours.toDouble() {
+            let hours = Int(drivingDecimalHours)
+            let minutes = Int((drivingDecimalHours - Double(hours)) * 60)
+            let calendar = Calendar.current
+            var components = DateComponents()
+            components.hour = hours
+            components.minute = minutes
+            if let date = calendar.date(from: components) {
+                drivingTimePicker = date
+            }
+        }
+        
+        if let workingDecimalHours = workingHours.toDouble() {
+            let hours = Int(workingDecimalHours)
+            let minutes = Int((workingDecimalHours - Double(hours)) * 60)
+            let calendar = Calendar.current
+            var components = DateComponents()
+            components.hour = hours
+            components.minute = minutes
+            if let date = calendar.date(from: components) {
+                workingTimePicker = date
+            }
+        }
     }
     
     private func clearForm() {
@@ -778,6 +817,7 @@ struct WorkDayEntryView: View {
         selectedDate = Date()
         isEditingExistingRecord = false
         selectedDayType = .work
+        updateTimePickerValues()
         // Navigate to home tab after clearing form
         selectedTab = 0
     }

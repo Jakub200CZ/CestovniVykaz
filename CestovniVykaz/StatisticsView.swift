@@ -13,6 +13,7 @@ struct StatisticsView: View {
     @ObservedObject var localizationManager = LocalizationManager.shared
     @Binding var selectedTab: Int
     @State private var selectedTimeRange: TimeRange = .allTime
+    @AppStorage("useTimePicker") private var useTimePicker = false
     
     enum TimeRange: String, CaseIterable {
         case currentMonth = "Tento měsíc"
@@ -88,8 +89,7 @@ struct StatisticsView: View {
     }
     
     var body: some View {
-        NavigationView {
-            ScrollView {
+        ScrollView {
                 VStack(spacing: 20) {
                     // Period Stats based on selected time range
                     VStack(spacing: 20) {
@@ -100,7 +100,7 @@ struct StatisticsView: View {
                         HStack(spacing: DesignSystem.Spacing.sm) {
                             StatCard(
                                 title: "Celkem hodin",
-                                value: String(format: "%.1f", periodStats.totalHours),
+                                value: periodStats.totalHours.formattedTime(useTimePicker: useTimePicker),
                                 icon: "clock.fill",
                                 color: DesignSystem.Colors.primary
                             )
@@ -158,7 +158,6 @@ struct StatisticsView: View {
             }
             .navigationTitle("Statistiky")
             .navigationBarTitleDisplayMode(.inline)
-        }
     }
 }
 
@@ -167,6 +166,7 @@ struct MonthlyStatRow: View {
     let report: MonthlyReport
     @ObservedObject var viewModel: MechanicViewModel
     @ObservedObject var localizationManager = LocalizationManager.shared
+    @AppStorage("useTimePicker") private var useTimePicker = false
     
     // Správné skloňování "dny" v češtině
     private func formatDays(_ count: Int) -> String {
@@ -208,7 +208,7 @@ struct MonthlyStatRow: View {
             HStack(spacing: 20) {
                 // Hours
                 VStack(alignment: .trailing, spacing: 2) {
-                    Text("\(report.totalHours, specifier: "%.1f")")
+                    Text(report.totalHours.formattedTime(useTimePicker: useTimePicker))
                         .font(.system(size: 16, weight: .bold, design: .rounded))
                         .foregroundStyle(.blue)
                     

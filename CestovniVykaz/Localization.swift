@@ -326,7 +326,17 @@ class LocalizationData {
             "enterNote": "Zadejte poznámku",
             "newCustomer": "Nový Zákazník",
             "customerInfo": "Informace o zákazníkovi",
-            "back": "Zpět"
+            "back": "Zpět",
+            
+            // Time Input Settings
+            "timeInputSettings": "Zadávání času",
+            "useTimePicker": "Použít časový výběr",
+            "timePickerDescription": "Čas se zadává pomocí hodin a minut",
+            "textInputDescription": "Čas se zadává jako desetinné číslo (např. 6,5)",
+            "textMode": "Textový režim",
+            "timePickerMode": "Časový výběr",
+            "textModeDescription": "6,5 = 6 hodin 30 minut",
+            "timePickerDescription2": "Přesné nastavení hodin a minut"
         ]
         
         // English strings
@@ -587,7 +597,17 @@ class LocalizationData {
             "enterNote": "Enter Note",
             "newCustomer": "New Customer",
             "customerInfo": "Customer Information",
-            "back": "Back"
+            "back": "Back",
+            
+            // Time Input Settings
+            "timeInputSettings": "Time Input",
+            "useTimePicker": "Use Time Picker",
+            "timePickerDescription": "Time is entered using hours and minutes",
+            "textInputDescription": "Time is entered as decimal number (e.g. 6.5)",
+            "textMode": "Text Mode",
+            "timePickerMode": "Time Picker",
+            "textModeDescription": "6.5 = 6 hours 30 minutes",
+            "timePickerDescription2": "Precise hours and minutes setting"
         ]
         
         // German strings
@@ -848,7 +868,17 @@ class LocalizationData {
             "enterNote": "Notiz eingeben",
             "newCustomer": "Neuer Kunde",
             "customerInfo": "Kundeninformationen",
-            "back": "Zurück"
+            "back": "Zurück",
+            
+            // Time Input Settings
+            "timeInputSettings": "Zeiteingabe",
+            "useTimePicker": "Zeitauswahl verwenden",
+            "timePickerDescription": "Zeit wird mit Stunden und Minuten eingegeben",
+            "textInputDescription": "Zeit wird als Dezimalzahl eingegeben (z.B. 6,5)",
+            "textMode": "Textmodus",
+            "timePickerMode": "Zeitauswahl",
+            "textModeDescription": "6,5 = 6 Stunden 30 Minuten",
+            "timePickerDescription2": "Präzise Stunden- und Minuten-Einstellung"
         ]
     }
     

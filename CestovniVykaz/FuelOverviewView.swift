@@ -121,25 +121,7 @@ struct FuelOverviewView: View {
             }
             .navigationTitle(localizationManager.localizedString("fuel"))
             .navigationBarTitleDisplayMode(.inline)
-            .navigationBarBackButtonHidden()
             .toolbar {
-                
-                // 🔙 Zpět tlačítko vlevo
-                    ToolbarItem(placement: .navigationBarLeading) {
-                        Button(action: {
-                            // Akce pro návrat zpět
-                            // Pokud používáš NavigationStack:
-                            // dismiss() zavře aktuální view
-                            dismiss()
-                        }) {
-                            HStack {
-                                Image(systemName: "chevron.left")
-                                Text(localizationManager.localizedString("back"))
-                            }
-                            .foregroundStyle(.blue)
-                        }
-                    }
-                
                 ToolbarItem(placement: .navigationBarTrailing) {
                     Button(action: {
                         showingSettings = true
@@ -150,7 +132,7 @@ struct FuelOverviewView: View {
                 }
             }
             .sheet(isPresented: $showingSettings) {
-                SettingsView()
+                SettingsView(viewModel: viewModel)
             }
             .onAppear {
                 withAnimation(.easeOut(duration: 0.8)) {
@@ -517,8 +499,7 @@ struct FuelEntrySheet: View {
     }
     
     var body: some View {
-        NavigationView {
-            Form {
+        Form {
                 Section("Datum a čas") {
                     VStack(alignment: .leading, spacing: 4) {
                         DatePicker("Datum", selection: $selectedDate, displayedComponents: [.date, .hourAndMinute])
@@ -757,7 +738,6 @@ struct FuelEntrySheet: View {
                     animateForm = true
                 }
             }
-        }
     }
     
     private func saveFuelEntry() {

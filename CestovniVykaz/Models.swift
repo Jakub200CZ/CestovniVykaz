@@ -6,6 +6,7 @@
 //
 
 import Foundation
+import SwiftUI
 
 // MARK: - String Extension for Number Conversion
 extension String {
@@ -18,6 +19,100 @@ extension String {
     func toDouble() -> Double? {
         return Double(self.normalizedForDouble())
     }
+}
+
+// MARK: - Time Formatting Extension
+extension Double {
+    /// Formats time based on user's preference (decimal or time picker format)
+    func formattedTime(useTimePicker: Bool) -> String {
+        if useTimePicker {
+            // Format as HH:MM - převést na celé minuty a pak na HH:MM bez zaokrouhlování
+            let totalMinutes = Int(self * 60) // Převést na celé minuty
+            let hours = totalMinutes / 60
+            let minutes = totalMinutes % 60
+            return String(format: "%d:%02d", hours, minutes)
+        } else {
+            // Format as decimal
+            return String(format: "%.1f", self)
+        }
+    }
+}
+
+// MARK: - Time Input Field Component
+struct TimeInputField: View {
+    let title: String
+    @Binding var textValue: String
+    @Binding var timeValue: Date
+    let useTimePicker: Bool
+    let placeholder: String
+    let focusedField: FocusState<Field?>.Binding
+    let field: Field
+    let disabled: Bool
+    
+    init(title: String, textValue: Binding<String>, timeValue: Binding<Date>, useTimePicker: Bool, placeholder: String = "0.0h", focusedField: FocusState<Field?>.Binding, field: Field, disabled: Bool = false) {
+        self.title = title
+        self._textValue = textValue
+        self._timeValue = timeValue
+        self.useTimePicker = useTimePicker
+        self.placeholder = placeholder
+        self.focusedField = focusedField
+        self.field = field
+        self.disabled = disabled
+    }
+    
+    var body: some View {
+        HStack {
+            Text(title)
+            Spacer()
+            
+            if useTimePicker {
+                DatePicker("", selection: $timeValue, displayedComponents: .hourAndMinute)
+                    .datePickerStyle(.compact)
+                    .labelsHidden()
+                    .disabled(disabled)
+                    .onChange(of: timeValue) { _, newValue in
+                        // Převést čas na desetinné hodiny pro uložení
+                        let calendar = Calendar.current
+                        let components = calendar.dateComponents([.hour, .minute], from: newValue)
+                        let hours = Double(components.hour ?? 0)
+                        let minutes = Double(components.minute ?? 0)
+                        let decimalHours = hours + (minutes / 60.0)
+                        textValue = String(format: "%.1f", decimalHours)
+                    }
+            } else {
+                TextField(placeholder, text: $textValue)
+                    .keyboardType(.decimalPad)
+                    .multilineTextAlignment(.trailing)
+                    .disabled(disabled)
+                    .focused(focusedField, equals: field)
+                    .onChange(of: textValue) { _, newValue in
+                        // Převést desetinné hodiny na čas pro time picker
+                        if let decimalHours = newValue.toDouble() {
+                            let hours = Int(decimalHours)
+                            let minutes = Int((decimalHours - Double(hours)) * 60)
+                            let calendar = Calendar.current
+                            var components = DateComponents()
+                            components.hour = hours
+                            components.minute = minutes
+                            if let date = calendar.date(from: components) {
+                                timeValue = date
+                            }
+                        }
+                    }
+            }
+        }
+    }
+}
+
+// MARK: - Field Enum for Focus Management
+enum Field: Hashable {
+    case customerName
+    case city
+    case kilometers
+    case drivingTime
+    case drivingHours
+    case workingHours
+    case notes
 }
 
 // MARK: - Day Type Enum
