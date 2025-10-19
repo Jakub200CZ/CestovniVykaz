@@ -6,7 +6,6 @@ struct LoadingView: View {
     @State private var isAnimating = false
     @State private var progress: CGFloat = 0.0
     @State private var showApp = false
-    @ObservedObject var localizationManager = LocalizationManager.shared
     
     var body: some View {
         ZStack {
@@ -41,12 +40,12 @@ struct LoadingView: View {
                     
                     // App Title
                     VStack(spacing: 8) {
-                        Text(localizationManager.localizedString("appTitle"))
+                        Text("Cestovní výkaz")
                             .font(.largeTitle)
                             .fontWeight(.bold)
                             .foregroundStyle(.white)
                         
-                        Text(localizationManager.localizedString("appSubtitle"))
+                        Text("Pro mechaniky")
                             .font(.title3)
                             .foregroundStyle(.white.opacity(0.8))
                     }
@@ -72,7 +71,7 @@ struct LoadingView: View {
                         .frame(width: 250)
                     
                     // Loading Text
-                    Text(localizationManager.localizedString("loadingApp"))
+                    Text("Načítání aplikace...")
                         .font(.subheadline)
                         .foregroundStyle(.white.opacity(0.8))
                 }
@@ -82,7 +81,7 @@ struct LoadingView: View {
                 
                 // Creator info - positioned at bottom
                 VStack(spacing: -10) {
-                    Text(localizationManager.localizedString("createdBy"))
+                    Text("Vytvořeno společností")
                         .font(.subheadline)
                         .foregroundStyle(.white.opacity(0.8))
                     

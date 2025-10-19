@@ -17,7 +17,6 @@ extension View {
 // MARK: - Main Navigation View
 struct MechanicTabView: View {
     @StateObject private var viewModel = MechanicViewModel()
-    @ObservedObject var localizationManager = LocalizationManager.shared
     @State private var selectedTab = 0
     @State private var animateTabTransition = false
     
@@ -28,7 +27,7 @@ struct MechanicTabView: View {
                 HomeView(viewModel: viewModel, selectedTab: $selectedTab)
                     .tabItem {
                         Image(systemName: "house.fill")
-                        Text(LocalizationManager.shared.localizedString("overview"))
+                        Text("Přehled")
                     }
                     .tag(0)
                     .transition(.asymmetric(
@@ -40,7 +39,7 @@ struct MechanicTabView: View {
                 WorkDayEntryView(viewModel: viewModel, selectedTab: $selectedTab)
                     .tabItem {
                         Image(systemName: "plus.circle.fill")
-                        Text(LocalizationManager.shared.localizedString("records"))
+                        Text("Záznamy")
                     }
                     .tag(1)
                     .transition(.asymmetric(
@@ -52,7 +51,7 @@ struct MechanicTabView: View {
                 HistoryView(viewModel: viewModel, selectedTab: $selectedTab)
                     .tabItem {
                         Image(systemName: "clock.fill")
-                        Text(LocalizationManager.shared.localizedString("history"))
+                        Text("Historie")
                     }
                     .tag(2)
                     .transition(.asymmetric(
@@ -64,7 +63,7 @@ struct MechanicTabView: View {
                 FuelOverviewView(viewModel: viewModel, selectedTab: $selectedTab)
                     .tabItem {
                         Image(systemName: "fuelpump.fill")
-                        Text(localizationManager.localizedString("fuel"))
+                        Text("Palivo")
                     }
                     .tag(3)
                     .transition(.asymmetric(
@@ -76,7 +75,7 @@ struct MechanicTabView: View {
                 CustomerView(viewModel: viewModel, selectedTab: $selectedTab)
                     .tabItem {
                         Image(systemName: "person.2.fill")
-                        Text(localizationManager.localizedString("customers"))
+                        Text("Zákazníci")
                     }
                     .tag(4)
                     .transition(.asymmetric(
@@ -95,7 +94,6 @@ struct MechanicTabView: View {
 struct WorkDayEntryView: View {
     @ObservedObject var viewModel: MechanicViewModel
     @Binding var selectedTab: Int
-    @ObservedObject var localizationManager = LocalizationManager.shared
     @State private var selectedDate = Date()
     @State private var customerName = ""
     @State private var drivingHours = ""
@@ -315,12 +313,12 @@ struct WorkDayEntryView: View {
                 if isEditingExistingRecord {
                     Section {
                         VStack {
-                            Text(localizationManager.localizedString("existingRecord"))
+                            Text("Existující záznam")
                                 .font(.headline)
                                 .foregroundStyle(.orange)
                                 .multilineTextAlignment(.center)
                             
-                            Text(localizationManager.localizedString("recordLoaded"))
+                            Text("Záznam byl načten")
                                 .font(.subheadline)
                                 .foregroundStyle(.secondary)
                                 .multilineTextAlignment(.center)
@@ -330,9 +328,9 @@ struct WorkDayEntryView: View {
                     }
                 }
                 
-                Section(localizationManager.localizedString("date")) {
+                Section("Datum") {
                     VStack(alignment: .leading, spacing: 4) {
-                        DatePicker(localizationManager.localizedString("date"), selection: $selectedDate, displayedComponents: .date)
+                        DatePicker("Datum", selection: $selectedDate, displayedComponents: .date)
                             .datePickerStyle(.compact)
                             .onTapGesture {
                                 showingDatePicker = true
@@ -342,16 +340,16 @@ struct WorkDayEntryView: View {
                             .animation(.easeOut(duration: 0.6), value: animateForm)
                         
                         if !isSelectable(selectedDate) {
-                            Text("(\(localizationManager.localizedString("weekendHoliday")))")
+                            Text("(víkend/svátek)")
                                 .foregroundStyle(.red)
                                 .font(.caption)
                         } else if hasExistingRecord(for: selectedDate) {
                             if isEditingExistingRecord {
-                                Text("(\(localizationManager.localizedString("recordLoaded")))")
+                                Text("(záznam načten)")
                                     .foregroundStyle(.blue)
                                     .font(.caption)
                             } else {
-                                Text("(\(localizationManager.localizedString("alreadyHasRecord")))")
+                                Text("(již má záznam)")
                                     .foregroundStyle(.orange)
                                     .font(.caption)
                             }
@@ -400,7 +398,7 @@ struct WorkDayEntryView: View {
                     Section("Zákazníci") {
                         VStack(alignment: .leading, spacing: 8) {
                             HStack {
-                                Text(localizationManager.localizedString("customer"))
+                                Text("Zákazník")
                                 Spacer()
                                 TextField("Zadejte jméno zákazníka", text: $customerName)
                                     .multilineTextAlignment(.trailing)
@@ -460,7 +458,7 @@ struct WorkDayEntryView: View {
                     
                     Section("Časové údaje") {
                         TimeInputField(
-                            title: localizationManager.localizedString("drivingTime"),
+                            title: "Čas jízdy",
                             textValue: $drivingHours,
                             timeValue: $drivingTimePicker,
                             useTimePicker: useTimePicker,
@@ -474,7 +472,7 @@ struct WorkDayEntryView: View {
                         .animation(.easeOut(duration: 0.6).delay(0.2), value: animateForm)
                         
                         TimeInputField(
-                            title: localizationManager.localizedString("workingTime"),
+                            title: "Čas jízdy",
                             textValue: $workingHours,
                             timeValue: $workingTimePicker,
                             useTimePicker: useTimePicker,
@@ -490,7 +488,7 @@ struct WorkDayEntryView: View {
                     
                     Section("Kilometry a místo") {
                         HStack {
-                            Text(localizationManager.localizedString("kilometersDriven"))
+                            Text("Kilometry")
                             Spacer()
                             TextField("0", text: $kilometers)
                                 .keyboardType(.numberPad)
@@ -501,9 +499,9 @@ struct WorkDayEntryView: View {
                         
                         VStack(alignment: .leading, spacing: 8) {
                             HStack {
-                                Text(localizationManager.localizedString("city"))
+                                Text("Kilometry")
                                 Spacer()
-                                TextField(localizationManager.localizedString("enterCity"), text: $city)
+                                TextField("Zadejte město", text: $city)
                                     .multilineTextAlignment(.trailing)
                                     .autocorrectionDisabled()
                                     .textInputAutocapitalization(.never)
@@ -561,8 +559,8 @@ struct WorkDayEntryView: View {
                         }
                     }
                     
-                    Section(localizationManager.localizedString("notes")) {
-                        TextField(localizationManager.localizedString("enterNotes"), text: $notes, axis: .vertical)
+                    Section("Poznámky") {
+                        TextField("Zadejte poznámky", text: $notes, axis: .vertical)
                             .lineLimit(3...6)
                             .disabled(isEditingExistingRecord)
                             .focused($focusedField, equals: .notes)
@@ -575,7 +573,7 @@ struct WorkDayEntryView: View {
                         Button(action: {
                             saveWorkDay()
                         }) {
-                            Text(localizationManager.localizedString("saveRecord"))
+                            Text("Kilometry")
                                 .frame(maxWidth: .infinity)
                                 .padding(.vertical, 12)
                                 .background(.blue)
@@ -587,13 +585,13 @@ struct WorkDayEntryView: View {
                     }
                 }
                 }
-                .padding(.top, 16)
+                .padding(.top, 8)
                 .onTapGesture {
                     // Zavřít klávesnici při kliknutí mimo textové pole
                     focusedField = nil
                 }
             }
-            .navigationTitle(localizationManager.localizedString("records"))
+            .navigationTitle("Záznamy")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .navigationBarTrailing) {
@@ -621,7 +619,7 @@ struct WorkDayEntryView: View {
                 Button(action: {
                     clearForm()
                 }) {
-                    Text(localizationManager.localizedString("ok"))
+                    Text("OK")
                         .frame(maxWidth: .infinity)
                         .padding(.vertical, 8)
                         .contentShape(Rectangle())
@@ -632,7 +630,7 @@ struct WorkDayEntryView: View {
             }
             .alert("Chyba validace", isPresented: $showingValidationAlert) {
                 Button(action: { }) {
-                    Text(localizationManager.localizedString("ok"))
+                    Text("OK")
                         .frame(maxWidth: .infinity)
                         .padding(.vertical, 8)
                         .contentShape(Rectangle())

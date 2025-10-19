@@ -124,11 +124,11 @@ enum DayType: String, Codable, CaseIterable {
     var displayName: String {
         switch self {
         case .work:
-            return LocalizationManager.shared.localizedString("workDay")
+            return "Pracovní den"
         case .vacation:
-            return LocalizationManager.shared.localizedString("vacation")
+            return "Dovolená"
         case .sick:
-            return LocalizationManager.shared.localizedString("sickDay")
+            return "Nemoc"
         }
     }
     

@@ -10,7 +10,6 @@ import SwiftUI
 struct SettingsView: View {
     @ObservedObject var notificationManager = NotificationManager.shared
     @ObservedObject var viewModel: MechanicViewModel
-    @ObservedObject var localizationManager = LocalizationManager.shared
     @AppStorage("notificationsEnabled") private var notificationsEnabled = true
     @AppStorage("notificationHour") private var notificationHour = 20
     @AppStorage("notificationMinute") private var notificationMinute = 0
@@ -156,7 +155,7 @@ struct SettingsView: View {
     }
     
     private var timeInputSection: some View {
-        Section(localizationManager.localizedString("timeInputSettings")) {
+        Section("Zadávání času") {
             // Kompaktní přepínání s tlačítky
             HStack(spacing: 8) {
                 Button(action: {
@@ -167,7 +166,7 @@ struct SettingsView: View {
                     HStack(spacing: 6) {
                         Image(systemName: "textformat.123")
                             .font(.caption)
-                        Text("Text")
+                        Text("OK")
                             .font(.caption)
                             .fontWeight(.medium)
                     }
@@ -220,7 +219,7 @@ struct SettingsView: View {
                 Image(systemName: useTimePicker ? "clock" : "textformat.123")
                     .foregroundStyle(useTimePicker ? .green : .blue)
                     .font(.caption)
-                Text(useTimePicker ? localizationManager.localizedString("timePickerDescription2") : localizationManager.localizedString("textModeDescription"))
+                Text(useTimePicker ? "Přesné nastavení hodin a minut" : "6,5 = 6 hodin 30 minut")
                     .font(.caption)
                     .foregroundStyle(.secondary)
             }

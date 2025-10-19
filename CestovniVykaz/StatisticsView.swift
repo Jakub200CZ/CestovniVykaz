@@ -10,7 +10,6 @@ import SwiftUI
 // MARK: - Statistics View
 struct StatisticsView: View {
     @ObservedObject var viewModel: MechanicViewModel
-    @ObservedObject var localizationManager = LocalizationManager.shared
     @Binding var selectedTab: Int
     @State private var selectedTimeRange: TimeRange = .allTime
     @AppStorage("useTimePicker") private var useTimePicker = false
@@ -93,7 +92,7 @@ struct StatisticsView: View {
                 VStack(spacing: 20) {
                     // Period Stats based on selected time range
                     VStack(spacing: 20) {
-                        Text("\(localizationManager.localizedString("periodStats")) \(selectedTimeRange.rawValue.lowercased())")
+                        Text("Statistiky za \(selectedTimeRange.rawValue.lowercased())")
                             .font(.system(size: 18, weight: .semibold))
                             .foregroundStyle(.primary)
                         
@@ -134,14 +133,14 @@ struct StatisticsView: View {
                     
                     // Monthly Stats
                     VStack(spacing: 16) {
-                        Text(localizationManager.localizedString("monthlyOverview"))
+                        Text("Měsíční přehled")
                             .font(.system(size: 18, weight: .semibold))
                             .foregroundStyle(.primary)
                         
                         if filteredReports.isEmpty {
                             EmptyState(
                                 icon: "chart.bar",
-                                title: localizationManager.localizedString("noDataForPeriod")
+                                title: "Žádná data pro vybrané období"
                             )
                         } else {
                             LazyVStack(spacing: 6) {
@@ -154,7 +153,8 @@ struct StatisticsView: View {
                     .cardStyleSecondary()
                     .padding(.horizontal)
                 }
-                .padding(.vertical)
+                .padding(.top, 10)
+                .padding(.bottom)
             }
             .navigationTitle("Statistiky")
             .navigationBarTitleDisplayMode(.inline)
@@ -165,7 +165,6 @@ struct StatisticsView: View {
 struct MonthlyStatRow: View {
     let report: MonthlyReport
     @ObservedObject var viewModel: MechanicViewModel
-    @ObservedObject var localizationManager = LocalizationManager.shared
     @AppStorage("useTimePicker") private var useTimePicker = false
     
     // Správné skloňování "dny" v češtině
@@ -212,7 +211,7 @@ struct MonthlyStatRow: View {
                         .font(.system(size: 16, weight: .bold, design: .rounded))
                         .foregroundStyle(.blue)
                     
-                    Text(localizationManager.localizedString("hours"))
+                    Text("hodin")
                         .font(.system(size: 10, weight: .medium))
                         .foregroundStyle(.secondary)
                 }
@@ -223,7 +222,7 @@ struct MonthlyStatRow: View {
                         .font(.system(size: 16, weight: .bold, design: .rounded))
                         .foregroundStyle(.green)
                     
-                    Text(localizationManager.localizedString("km"))
+                    Text("km")
                         .font(.system(size: 10, weight: .medium))
                         .foregroundStyle(.secondary)
                 }
@@ -235,15 +234,15 @@ struct MonthlyStatRow: View {
                             .font(.system(size: 16, weight: .bold, design: .rounded))
                             .foregroundStyle(.orange)
                         
-                        Text(localizationManager.localizedString("currency"))
+                        Text("Kč")
                             .font(.system(size: 10, weight: .medium))
                             .foregroundStyle(.secondary)
                     } else {
-                        Text(localizationManager.localizedString("dash"))
+                        Text("-")
                             .font(.system(size: 16, weight: .bold, design: .rounded))
                             .foregroundStyle(.secondary)
                         
-                        Text(localizationManager.localizedString("currency"))
+                        Text("Kč")
                             .font(.system(size: 10, weight: .medium))
                             .foregroundStyle(.secondary)
                     }

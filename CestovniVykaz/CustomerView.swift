@@ -55,7 +55,7 @@ struct CustomerView: View {
                 }
                 .buttonStyle(PlainButtonStyle())
                 .padding(.horizontal)
-                .padding(.top, 16)
+                .padding(.top, 8)
                 
                 // Search bar
                 HStack {
@@ -69,7 +69,7 @@ struct CustomerView: View {
                 .background(.regularMaterial)
                 .clipShape(RoundedRectangle(cornerRadius: 12))
                 .padding(.horizontal)
-                .padding(.top, 16)
+                .padding(.top, 8)
                 
                 // Customer list
                 if filteredCustomers.isEmpty {
@@ -93,7 +93,7 @@ struct CustomerView: View {
                                 .listRowInsets(EdgeInsets(top: 6, leading: 16, bottom: 6, trailing: 16))
                         }
                     }
-                    .padding(.top, 16)
+                    .padding(.top, 8)
                     .listStyle(PlainListStyle())
                     .scrollContentBackground(.hidden)
                 }
@@ -129,7 +129,6 @@ struct CustomerView: View {
         @ObservedObject var viewModel: MechanicViewModel
         @Binding var selectedTab: Int
         @State private var showingDeleteConfirmation = false
-        @ObservedObject var localizationManager = LocalizationManager.shared
         @AppStorage("useTimePicker") private var useTimePicker = false
         
         var body: some View {
@@ -184,7 +183,7 @@ struct CustomerView: View {
                 Button(role: .cancel) {
                     showingDeleteConfirmation = true
                 } label: {
-                    Label(localizationManager.localizedString("delete"), systemImage: "trash")
+                    Label("Smazat", systemImage: "trash")
                         .foregroundColor(.red)
                 }
             }
@@ -192,12 +191,12 @@ struct CustomerView: View {
                 Button("Zrušit", role: .cancel) {
                     showingDeleteConfirmation = false
                 }
-                Button(localizationManager.localizedString("delete"), role: .destructive) {
+                Button("Smazat", role: .destructive) {
                     viewModel.deleteCustomer(customer)
                     showingDeleteConfirmation = false
                 }
             } message: {
-                Text(localizationManager.localizedString("confirmDeleteCustomer").replacingOccurrences(of: "{name}", with: customer.name))
+                Text("Opravdu chcete smazat zákazníka \(customer.name)?")
             }
         }
     }
@@ -207,7 +206,6 @@ struct CustomerView: View {
         @ObservedObject var viewModel: MechanicViewModel
         @Binding var selectedTab: Int
         @Environment(\.dismiss) private var dismiss
-        @ObservedObject var localizationManager = LocalizationManager.shared
         @State private var customerName = ""
         @State private var city = ""
         @State private var kilometers = ""
@@ -230,7 +228,7 @@ struct CustomerView: View {
                             .offset(y: animateForm ? 0 : 20)
                             .animation(.easeOut(duration: 0.6), value: animateForm)
                         
-                        Text(localizationManager.localizedString("customerName"))
+                        Text("Město")
                             .font(.caption)
                             .foregroundStyle(.secondary)
                     }
@@ -242,7 +240,7 @@ struct CustomerView: View {
                             .offset(y: animateForm ? 0 : 20)
                             .animation(.easeOut(duration: 0.6).delay(0.2), value: animateForm)
                         
-                        Text(localizationManager.localizedString("customerCity"))
+                        Text("Město")
                             .font(.caption)
                             .foregroundStyle(.secondary)
                     }
@@ -250,13 +248,13 @@ struct CustomerView: View {
                 
                 Section("Jízda") {
                     HStack {
-                        Text(localizationManager.localizedString("customerKilometers"))
+                        Text("Město")
                         Spacer()
                         TextField("0", text: $kilometers)
                             .focused($focusedField, equals: .kilometers)
                             .keyboardType(.decimalPad)
                             .multilineTextAlignment(.trailing)
-                        Text(localizationManager.localizedString("km"))
+                        Text("Město")
                             .font(.subheadline)
                             .foregroundStyle(.secondary)
                     }
@@ -265,7 +263,7 @@ struct CustomerView: View {
                     .animation(.easeOut(duration: 0.6).delay(0.4), value: animateForm)
                     
                     TimeInputField(
-                        title: localizationManager.localizedString("customerDrivingTime"),
+                        title: "Čas jízdy",
                         textValue: $drivingTime,
                         timeValue: $drivingTimePicker,
                         useTimePicker: useTimePicker,
@@ -282,7 +280,7 @@ struct CustomerView: View {
                     Button(action: {
                         saveCustomer()
                     }) {
-                        Text(localizationManager.localizedString("addCustomerButton"))
+                        Text("Město")
                             .frame(maxWidth: .infinity)
                             .padding(.vertical, 12)
                             .background(.blue)
@@ -302,18 +300,18 @@ struct CustomerView: View {
                 Button(action: {
                     clearForm()
                 }) {
-                    Text(localizationManager.localizedString("ok"))
+                    Text("OK")
                         .frame(maxWidth: .infinity)
                         .padding(.vertical, 8)
                         .contentShape(Rectangle())
                 }
                 .buttonStyle(PlainButtonStyle())
             } message: {
-                Text(localizationManager.localizedString("customerAdded"))
+                Text("Město")
             }
             .alert("Chyba validace", isPresented: $showingValidationAlert) {
                 Button(action: { }) {
-                    Text(localizationManager.localizedString("ok"))
+                    Text("OK")
                         .frame(maxWidth: .infinity)
                         .padding(.vertical, 8)
                         .contentShape(Rectangle())
@@ -391,7 +389,6 @@ struct CustomerView: View {
         @ObservedObject var viewModel: MechanicViewModel
         @Binding var selectedTab: Int
         @Environment(\.dismiss) private var dismiss
-        @ObservedObject var localizationManager = LocalizationManager.shared
         @State private var customerName = ""
         @State private var city = ""
         @State private var kilometers = ""
@@ -414,7 +411,7 @@ struct CustomerView: View {
                             .offset(y: animateForm ? 0 : 20)
                             .animation(.easeOut(duration: 0.6), value: animateForm)
                         
-                        Text(localizationManager.localizedString("customerName"))
+                        Text("Město")
                             .font(.caption)
                             .foregroundStyle(.secondary)
                     }
@@ -426,7 +423,7 @@ struct CustomerView: View {
                             .offset(y: animateForm ? 0 : 20)
                             .animation(.easeOut(duration: 0.6).delay(0.2), value: animateForm)
                         
-                        Text(localizationManager.localizedString("customerCity"))
+                        Text("Město")
                             .font(.caption)
                             .foregroundStyle(.secondary)
                     }
@@ -434,13 +431,13 @@ struct CustomerView: View {
                 
                 Section("Jízda") {
                     HStack {
-                        Text(localizationManager.localizedString("customerKilometers"))
+                        Text("Město")
                         Spacer()
                         TextField("0", text: $kilometers)
                             .keyboardType(.decimalPad)
                             .multilineTextAlignment(.trailing)
                             .focused($focusedField, equals: .kilometers)
-                        Text(localizationManager.localizedString("km"))
+                        Text("Město")
                             .font(.subheadline)
                             .foregroundStyle(.secondary)
                     }
@@ -449,7 +446,7 @@ struct CustomerView: View {
                     .animation(.easeOut(duration: 0.6).delay(0.4), value: animateForm)
                     
                     TimeInputField(
-                        title: localizationManager.localizedString("customerDrivingTime"),
+                        title: "Čas jízdy",
                         textValue: $drivingTime,
                         timeValue: $drivingTimePicker,
                         useTimePicker: useTimePicker,
@@ -466,7 +463,7 @@ struct CustomerView: View {
                     Button(action: {
                         updateCustomer()
                     }) {
-                        Text(localizationManager.localizedString("saveChanges"))
+                        Text("Město")
                             .frame(maxWidth: .infinity)
                             .padding(.vertical, 12)
                             .background(.blue)
@@ -490,18 +487,18 @@ struct CustomerView: View {
                 Button(action: {
                     dismiss()
                 }) {
-                    Text(localizationManager.localizedString("ok"))
+                    Text("OK")
                         .frame(maxWidth: .infinity)
                         .padding(.vertical, 8)
                         .contentShape(Rectangle())
                 }
                 .buttonStyle(PlainButtonStyle())
             } message: {
-                Text(localizationManager.localizedString("customerUpdated"))
+                Text("Město")
             }
             .alert("Chyba validace", isPresented: $showingValidationAlert) {
                 Button(action: { }) {
-                    Text(localizationManager.localizedString("ok"))
+                    Text("OK")
                         .frame(maxWidth: .infinity)
                         .padding(.vertical, 8)
                         .contentShape(Rectangle())

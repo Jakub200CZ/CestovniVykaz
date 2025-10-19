@@ -10,7 +10,6 @@ import SwiftUI
 // MARK: - History View
 struct HistoryView: View {
     @ObservedObject var viewModel: MechanicViewModel
-    @ObservedObject var localizationManager = LocalizationManager.shared
     @Binding var selectedTab: Int
     @State private var animateList = false
     @State private var showingSettings = false
@@ -37,9 +36,10 @@ struct HistoryView: View {
                         .animation(.easeOut(duration: 0.6).delay(Double(index) * 0.1), value: animateList)
                     }
                 }
+                .padding(.top, 10)
                 
             }
-            .navigationTitle(localizationManager.localizedString("history"))
+            .navigationTitle("Historie")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .navigationBarTrailing) {
@@ -65,7 +65,6 @@ struct HistoryView: View {
 
 struct MonthlyReportRow: View {
     let report: MonthlyReport
-    @ObservedObject var localizationManager = LocalizationManager.shared
     @AppStorage("useTimePicker") private var useTimePicker = false
     
     // Výpočet pracovních dnů v měsíci (pondělí-pátek)
@@ -95,21 +94,21 @@ struct MonthlyReportRow: View {
         let countText: String
         switch count {
         case 1:
-            countText = localizationManager.localizedString("day1")
+            countText = "den"
         case 2...4:
-            countText = localizationManager.localizedString("day2to4").replacingOccurrences(of: "{count}", with: "\(count)")
+            countText = "\(count) dny"
         default:
-            countText = localizationManager.localizedString("day5plus").replacingOccurrences(of: "{count}", with: "\(count)")
+            countText = "\(count) dnů"
         }
         
         let totalText: String
         switch total {
         case 1:
-            totalText = localizationManager.localizedString("day1")
+            totalText = "den"
         case 2...4:
-            totalText = localizationManager.localizedString("day2to4").replacingOccurrences(of: "{count}", with: "\(total)")
+            totalText = "\(total) dny"
         default:
-            totalText = localizationManager.localizedString("day5plus").replacingOccurrences(of: "{count}", with: "\(total)")
+            totalText = "\(total) dnů"
         }
         
         return "\(countText)/\(totalText)"
@@ -118,7 +117,7 @@ struct MonthlyReportRow: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
             HStack {
-                Text(report.month.localizedMonthYear(for: localizationManager.currentLanguage).capitalized)
+                Text(report.month.formatted(.dateTime.month(.wide).year()))
                     .font(.headline)
                     .fontWeight(.semibold)
                 
@@ -127,8 +126,8 @@ struct MonthlyReportRow: View {
             }
             
             HStack(spacing: 20) {
-                StatItem(title: localizationManager.localizedString("driving"), value: "\(report.totalDrivingHours.formattedTime(useTimePicker: useTimePicker)) h")
-                StatItem(title: localizationManager.localizedString("work"), value: "\(report.totalWorkingHours.formattedTime(useTimePicker: useTimePicker)) h")
+                StatItem(title: "Jízda", value: "\(report.totalDrivingHours.formattedTime(useTimePicker: useTimePicker)) h")
+                StatItem(title: "Práce", value: "\(report.totalWorkingHours.formattedTime(useTimePicker: useTimePicker)) h")
                 StatItem(title: "Km", value: String(format: "%.0f", report.totalKilometers))
                 Spacer()
                 Text(formatDays(report.workDays.count, total: workingDaysInMonth))
@@ -144,7 +143,7 @@ struct MonthlyReportRow: View {
                             Circle()
                                 .fill(.green)
                                 .frame(width: 8, height: 8)
-                            Text("\(report.workingDays) \(localizationManager.localizedString("workingDays"))")
+                            Text("\(report.workingDays) \("Pracovní dny")")
                                 .font(.caption2)
                                 .foregroundStyle(.secondary)
                         }
@@ -155,7 +154,7 @@ struct MonthlyReportRow: View {
                             Circle()
                                 .fill(.blue)
                                 .frame(width: 8, height: 8)
-                            Text("\(report.vacationDays) \(localizationManager.localizedString("vacationDays"))")
+                            Text("\(report.vacationDays) \("Dovolená")")
                                 .font(.caption2)
                                 .foregroundStyle(.secondary)
                         }
@@ -166,7 +165,7 @@ struct MonthlyReportRow: View {
                             Circle()
                                 .fill(.red)
                                 .frame(width: 8, height: 8)
-                            Text("\(report.sickDays) \(localizationManager.localizedString("sickDays"))")
+                            Text("\(report.sickDays) \("Lékař / Nemoc")")
                                 .font(.caption2)
                                 .foregroundStyle(.secondary)
                         }
@@ -203,7 +202,6 @@ struct MonthDetailView: View, Identifiable {
     @Binding var selectedTab: Int
     var id: UUID { UUID() } // Unique ID for each view instance
     @Environment(\.dismiss) private var dismiss
-    @ObservedObject var localizationManager = LocalizationManager.shared
     @State private var editingWorkDay: WorkDay? = nil
     @State private var animateContent = false
     @State private var showingShareSheet = false
@@ -231,22 +229,22 @@ struct MonthDetailView: View, Identifiable {
     var body: some View {
         List {
                 if let report = report {
-                    Section(localizationManager.localizedString("monthOverview")) {
-                        DetailRow(title: localizationManager.localizedString("totalDrivingHours"), value: "\(report.totalDrivingHours.formattedTime(useTimePicker: useTimePicker)) h")
-                        DetailRow(title: localizationManager.localizedString("totalWorkingHours"), value: "\(report.totalWorkingHours.formattedTime(useTimePicker: useTimePicker)) h")
-                        DetailRow(title: localizationManager.localizedString("totalKilometers"), value: String(format: "%.0f km", report.totalKilometers))
-                        DetailRow(title: localizationManager.localizedString("totalHours"), value: "\(report.totalHours.formattedTime(useTimePicker: useTimePicker)) h")
-                        DetailRow(title: localizationManager.localizedString("recordsCountShort"), value: "\(report.workDays.count)")
+                    Section("Přehled měsíce") {
+                        DetailRow(title: "Jízda", value: "\(report.totalDrivingHours.formattedTime(useTimePicker: useTimePicker)) h")
+                        DetailRow(title: "Práce", value: "\(report.totalWorkingHours.formattedTime(useTimePicker: useTimePicker)) h")
+                        DetailRow(title: "Ujeté Km", value: String(format: "%.0f km", report.totalKilometers))
+                        DetailRow(title: "Celkově ujeto", value: "\(report.totalHours.formattedTime(useTimePicker: useTimePicker)) h")
+                        DetailRow(title: "Pracovních dnů", value: "\(report.workDays.count)")
                         
                         // Dny podle typu
                         if report.workingDays > 0 {
-                            DetailRow(title: localizationManager.localizedString("workingDays"), value: "\(report.workingDays)")
+                            DetailRow(title: "Odpracované dny", value: "\(report.workingDays)")
                         }
                         if report.vacationDays > 0 {
-                            DetailRow(title: localizationManager.localizedString("vacationDays"), value: "\(report.vacationDays) \(localizationManager.localizedString("daysCount"))")
+                            DetailRow(title: "Dovolená", value: "\(report.vacationDays) \("Dny")")
                         }
                         if report.sickDays > 0 {
-                            DetailRow(title: "Lékař/Nemoc", value: "\(report.sickDays) dnů")
+                            DetailRow(title: "Lékař/Nemoc", value: "\(report.sickDays) dny")
                         }
                     }
                     
@@ -258,7 +256,7 @@ struct MonthDetailView: View, Identifiable {
                     }
                     
                     if !report.workDays.isEmpty {
-                        Section("\(localizationManager.localizedString("workingDays")) (\(report.workDays.count))") {
+                        Section("Pracovní dny (\(report.workDays.count))") {
                             ForEach(report.workDays.sorted { $0.date < $1.date }, id: \.id) { workDay in
                                 WorkDayDetailRow(workDay: workDay, onEdit: {
                                     editingWorkDay = workDay
@@ -267,14 +265,14 @@ struct MonthDetailView: View, Identifiable {
                                     Button(role: .destructive) {
                                         viewModel.deleteWorkDay(workDay, from: report)
                                     } label: {
-                                        Label(localizationManager.localizedString("delete"), systemImage: "trash")
+                                        Label("Smazat", systemImage: "trash")
                                     }
                                 }
                             }
                         }
                     } else {
                         Section("Pracovní dny") {
-                            Text(localizationManager.localizedString("noRecordsForMonth"))
+                            Text("Žádné záznamy pro tento měsíc")
                                 .foregroundStyle(.secondary)
                                 .italic()
                         }
@@ -320,13 +318,13 @@ struct MonthDetailView: View, Identifiable {
                     }
                 } else {
                     Section {
-                        Text(localizationManager.localizedString("monthNotFound"))
+                        Text("Měsíc nenalezen")
                             .foregroundStyle(.secondary)
                             .italic()
                     }
                 }
             }
-            .navigationTitle(month.localizedMonthYear(for: localizationManager.currentLanguage).capitalized)
+            .navigationTitle(month.formatted(.dateTime.month(.wide).year()))
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .navigationBarTrailing) {
@@ -428,7 +426,6 @@ struct DetailRow: View {
 struct WorkDayDetailRow: View {
     let workDay: WorkDay
     var onEdit: (() -> Void)? = nil
-    @ObservedObject var localizationManager = LocalizationManager.shared
     @AppStorage("useTimePicker") private var useTimePicker = false
     
     var body: some View {
@@ -636,7 +633,6 @@ struct EditWorkDaySheet: View {
     let report: MonthlyReport
     var onDismiss: () -> Void
     @Environment(\.dismiss) private var dismiss
-    @ObservedObject var localizationManager = LocalizationManager.shared
     @State private var validationErrors: [String] = []
     @State private var drivingHoursText: String = ""
     @State private var workingHoursText: String = ""
@@ -681,17 +677,17 @@ struct EditWorkDaySheet: View {
                     DatePicker("Datum", selection: $workDay.date, displayedComponents: .date)
                     
                     if !isWorkDay(workDay.date) || isHoliday(workDay.date) {
-                        Text("(\(localizationManager.localizedString("weekendHoliday")))")
+                        Text("(víkend/svátek)")
                             .foregroundStyle(.red)
                             .font(.caption)
                     } else if hasExistingRecord(for: workDay.date, excluding: workDay) {
-                        Text("(\(localizationManager.localizedString("alreadyHasRecord")))")
+                        Text("(již má záznam)")
                             .foregroundStyle(.orange)
                             .font(.caption)
                     }
                 }
                 TimeInputField(
-                    title: localizationManager.localizedString("drivingTime"),
+                    title: "Ujeté hodiny",
                     textValue: $drivingHoursText,
                     timeValue: $drivingTimePicker,
                     useTimePicker: useTimePicker,
@@ -700,7 +696,7 @@ struct EditWorkDaySheet: View {
                     field: .drivingHours
                 )
                 TimeInputField(
-                    title: localizationManager.localizedString("workingTime"),
+                    title: "Odpracované hodiny",
                     textValue: $workingHoursText,
                     timeValue: $workingTimePicker,
                     useTimePicker: useTimePicker,
@@ -709,14 +705,14 @@ struct EditWorkDaySheet: View {
                     field: .workingHours
                 )
                 HStack {
-                    Text(localizationManager.localizedString("kilometers"))
+                    Text("Kilometrů")
                     Spacer()
                     TextField("0", text: $kilometersText)
                         .keyboardType(.numberPad)
                         .multilineTextAlignment(.trailing)
                 }
                 HStack {
-                    Text(localizationManager.localizedString("city"))
+                    Text("Město")
                     Spacer()
                     TextField("Zadejte město", text: $workDay.city)
                         .multilineTextAlignment(.trailing)
@@ -747,7 +743,7 @@ struct EditWorkDaySheet: View {
                             onDismiss()
                         }
                     }) {
-                        Text(localizationManager.localizedString("save"))
+                        Text("Uložit")
                             .frame(alignment: .trailing)
                             .padding(.horizontal, 8)
                             .contentShape(Rectangle())
@@ -853,25 +849,18 @@ struct EditWorkDaySheet: View {
 // Kalendářní náhled pro měsíc
 struct MonthCalendarView: View {
     let report: MonthlyReport?
-    @ObservedObject var localizationManager = LocalizationManager.shared
     
     private let calendar = Calendar.current
     
     private var weekDays: [String] {
         [
-            localizationManager.localizedString("mon"),
-            localizationManager.localizedString("tue"),
-            localizationManager.localizedString("wed"),
-            localizationManager.localizedString("thu"),
-            localizationManager.localizedString("fri"),
-            localizationManager.localizedString("sat"),
-            localizationManager.localizedString("sun")
+            "Po", "Út", "St", "Čt", "Pá", "So", "Ne"
         ]
     }
     
     var body: some View {
         VStack(spacing: 8) {
-            Text(localizationManager.localizedString("monthCalendar"))
+            Text("Kalendář měsíce")
                 .font(.headline)
                 .foregroundStyle(.primary)
             
@@ -906,7 +895,7 @@ struct MonthCalendarView: View {
             
             // Legenda - zobrazit vždy
             VStack(spacing: 8) {
-                Text(localizationManager.localizedString("legend"))
+                Text("Legenda")
                     .font(.caption)
                     .fontWeight(.medium)
                     .foregroundStyle(.secondary)
@@ -917,7 +906,7 @@ struct MonthCalendarView: View {
                             Circle()
                                 .fill(.green)
                                 .frame(width: 12, height: 12)
-                            Text(localizationManager.localizedString("workingTime"))
+                            Text("Pracovní čas")
                                 .font(.caption2)
                                 .foregroundStyle(.secondary)
                         }
@@ -926,7 +915,7 @@ struct MonthCalendarView: View {
                             Circle()
                                 .fill(.blue)
                                 .frame(width: 12, height: 12)
-                            Text(localizationManager.localizedString("vacation"))
+                            Text("Dovolená")
                                 .font(.caption2)
                                 .foregroundStyle(.secondary)
                         }
@@ -939,7 +928,7 @@ struct MonthCalendarView: View {
                             Circle()
                                 .fill(.red)
                                 .frame(width: 12, height: 12)
-                            Text(localizationManager.localizedString("sickMedical"))
+                            Text("Lékař/Nemoc")
                                 .font(.caption2)
                                 .foregroundStyle(.secondary)
                         }
@@ -948,7 +937,7 @@ struct MonthCalendarView: View {
                             Circle()
                                 .fill(Color(.systemGray5))
                                 .frame(width: 12, height: 12)
-                            Text(localizationManager.localizedString("workingDay"))
+                            Text("Pracovní den")
                                 .font(.caption2)
                                 .foregroundStyle(.secondary)
                         }
@@ -1025,14 +1014,13 @@ struct MonthCalendarView: View {
 // Prázdný kalendář pro měsíc bez záznamů
 struct EmptyMonthCalendarView: View {
     let month: Date
-    @ObservedObject var localizationManager = LocalizationManager.shared
     
     private let calendar = Calendar.current
     private let weekDays = ["Po", "Út", "St", "Čt", "Pá", "So", "Ne"]
     
     var body: some View {
         VStack(spacing: 8) {
-            Text(localizationManager.localizedString("monthCalendar"))
+            Text("Kalendář měsíce")
                 .font(.headline)
                 .foregroundStyle(.primary)
             
@@ -1065,7 +1053,7 @@ struct EmptyMonthCalendarView: View {
             
             // Legenda - zobrazit vždy
             VStack(spacing: 8) {
-                Text(localizationManager.localizedString("legend"))
+                Text("Legenda")
                     .font(.caption)
                     .fontWeight(.medium)
                     .foregroundStyle(.secondary)
@@ -1076,7 +1064,7 @@ struct EmptyMonthCalendarView: View {
                             Circle()
                                 .fill(.green)
                                 .frame(width: 12, height: 12)
-                            Text(localizationManager.localizedString("workingTime"))
+                            Text("Pracovní čas")
                                 .font(.caption2)
                                 .foregroundStyle(.secondary)
                         }
@@ -1085,7 +1073,7 @@ struct EmptyMonthCalendarView: View {
                             Circle()
                                 .fill(.blue)
                                 .frame(width: 12, height: 12)
-                            Text(localizationManager.localizedString("vacation"))
+                            Text("Dovolená")
                                 .font(.caption2)
                                 .foregroundStyle(.secondary)
                         }
@@ -1098,7 +1086,7 @@ struct EmptyMonthCalendarView: View {
                             Circle()
                                 .fill(.red)
                                 .frame(width: 12, height: 12)
-                            Text(localizationManager.localizedString("sickMedical"))
+                            Text("Lékař/Nemoc")
                                 .font(.caption2)
                                 .foregroundStyle(.secondary)
                         }
@@ -1107,7 +1095,7 @@ struct EmptyMonthCalendarView: View {
                             Circle()
                                 .fill(Color(.systemGray5))
                                 .frame(width: 12, height: 12)
-                            Text(localizationManager.localizedString("workingDay"))
+                            Text("Pracovní den")
                                 .font(.caption2)
                                 .foregroundStyle(.secondary)
                         }

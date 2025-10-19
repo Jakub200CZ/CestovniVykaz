@@ -9,7 +9,6 @@ import SwiftUI
 
 struct HomeView: View {
     @ObservedObject var viewModel: MechanicViewModel
-    @ObservedObject var localizationManager = LocalizationManager.shared
     @Binding var selectedTab: Int
     @State private var showingSettings = false
     @AppStorage("useTimePicker") private var useTimePicker = false
@@ -160,7 +159,7 @@ struct HomeView: View {
                         }
                         
                         VStack(spacing: 4) {
-                            Text(localizationManager.localizedString("home"))
+                            Text("Domů")
                                 .font(.largeTitle)
                                 .fontWeight(.bold)
                                 .foregroundStyle(
@@ -171,18 +170,18 @@ struct HomeView: View {
                                     )
                                 )
                             
-                            Text(localizationManager.localizedString("appDescription"))
+                            Text("Cestovní výkaz pro mechaniky")
                                 .font(.subheadline)
                                 .fontWeight(.medium)
                                 .foregroundStyle(.secondary)
                         }
                     }
-                    .padding(.top, 20)
+                    .padding(.top, 10)
                     
                     // Current Month Overview
                     VStack(spacing: 20) {
                         HStack {
-                            Text(localizationManager.localizedString("currentMonth"))
+                            Text("Aktuální měsíc")
                                 .font(.system(size: 18, weight: .semibold))
                                 .foregroundStyle(.primary)
                             
@@ -191,21 +190,21 @@ struct HomeView: View {
                         
                         HStack(spacing: DesignSystem.Spacing.sm) {
                             StatCard(
-                                title: localizationManager.localizedString("totalHours"),
+                                title: "Celkem hodin",
                                 value: currentMonthData.totalHours.formattedTime(useTimePicker: useTimePicker),
                                 icon: "clock.fill",
                                 color: DesignSystem.Colors.primary
                             )
                             
                             StatCard(
-                                title: localizationManager.localizedString("kilometers"),
+                                title: "Kilometry",
                                 value: String(format: "%.0f", currentMonthData.totalKilometers),
                                 icon: "speedometer",
                                 color: DesignSystem.Colors.secondary
                             )
                             
                             StatCard(
-                                title: localizationManager.localizedString("fuelCosts"),
+                                title: "Náklady na palivo",
                                 value: String(format: "%.0f Kč", viewModel.monthlyFuelCost),
                                 icon: "fuelpump.fill",
                                 color: DesignSystem.Colors.accent
@@ -216,7 +215,7 @@ struct HomeView: View {
                             
                             if let currentReport = currentMonthData.currentReport {
                                 HStack {
-                                    Text("\(currentReport.workDays.count) \(localizationManager.localizedString("recordsCount"))")
+                                    Text("\(currentReport.workDays.count) záznamů")
                                         .font(.caption)
                                         .foregroundStyle(.secondary)
                                     
@@ -229,14 +228,14 @@ struct HomeView: View {
                     
                     // Quick Actions
                     VStack(spacing: 16) {
-                        Text(localizationManager.localizedString("quickActions"))
+                        Text("Rychlé akce")
                             .font(.headline)
                             .foregroundStyle(.primary)
                         
                         VStack(spacing: DesignSystem.Spacing.md) {
                             ActionButton(
-                                title: localizationManager.localizedString("addRecord"),
-                                subtitle: localizationManager.localizedString("addRecordForDay"),
+                                title: "Přidat záznam",
+                                subtitle: "Přidat záznam pro den",
                                 icon: "plus.circle.fill",
                                 color: DesignSystem.Colors.primary
                             ) {
@@ -244,8 +243,8 @@ struct HomeView: View {
                             }
                             
                             ActionButton(
-                                title: localizationManager.localizedString("history"),
-                                subtitle: localizationManager.localizedString("viewPreviousMonths"),
+                                title: "Historie",
+                                subtitle: "Zobrazit předchozí měsíce",
                                 icon: "clock.fill",
                                 color: DesignSystem.Colors.secondary
                             ) {
@@ -253,8 +252,8 @@ struct HomeView: View {
                             }
                             
                             ActionButton(
-                                title: localizationManager.localizedString("fuel"),
-                                subtitle: localizationManager.localizedString("fuelTracking"),
+                                title: "Palivo",
+                                subtitle: "Sledování paliva",
                                 icon: "fuelpump.fill",
                                 color: DesignSystem.Colors.accent
                             ) {
@@ -263,8 +262,8 @@ struct HomeView: View {
                             
                             NavigationLink(destination: StatisticsView(viewModel: viewModel, selectedTab: $selectedTab)) {
                                 ActionButtonContent(
-                                    title: localizationManager.localizedString("statistics"),
-                                    subtitle: localizationManager.localizedString("hoursKilometersOverview"),
+                                    title: "Statistiky",
+                                    subtitle: "Přehled hodin a kilometrů",
                                     icon: "chart.bar.fill",
                                     color: DesignSystem.Colors.purple
                                 )
@@ -280,7 +279,7 @@ struct HomeView: View {
                 }
             }
             .navigationBarHidden(false)
-            .navigationTitle(localizationManager.localizedString("overview"))
+            .navigationTitle("Přehled")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .navigationBarTrailing) {

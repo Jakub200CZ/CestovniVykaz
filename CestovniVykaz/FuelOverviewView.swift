@@ -10,7 +10,6 @@ import SwiftUI
 struct FuelOverviewView: View {
     @Environment(\.dismiss) private var dismiss
     @ObservedObject var viewModel: MechanicViewModel
-    @ObservedObject var localizationManager = LocalizationManager.shared
     @Binding var selectedTab: Int
     @State private var selectedDate = Date()
     @State private var animateContent = false
@@ -40,14 +39,14 @@ struct FuelOverviewView: View {
                     // Last 3 fuel entries
                     VStack(alignment: .leading, spacing: 16) {
                         HStack {
-                            Text(localizationManager.localizedString("lastFuelEntries"))
+                            Text("Poslední tankování")
                                 .font(.headline)
                                 .foregroundStyle(.primary)
                             
                             Spacer()
                             
                             NavigationLink(destination: FuelEntrySheet(viewModel: viewModel, selectedTab: $selectedTab)) {
-                                Text(localizationManager.localizedString("newFuelEntry"))
+                                Text("Nové tankování")
                                     .font(.caption)
                                     .foregroundStyle(.blue)
                                     .padding(.horizontal, 12)
@@ -62,8 +61,8 @@ struct FuelOverviewView: View {
                         if lastThreeEntries.isEmpty {
                             EmptyState(
                                 icon: "fuelpump",
-                                title: localizationManager.localizedString("noFuelEntries"),
-                                subtitle: localizationManager.localizedString("startAddingFuel")
+                                title: "Žádné tankování",
+                                subtitle: "Začněte přidávat tankování"
                             )
                         } else {
                             List {
@@ -87,7 +86,7 @@ struct FuelOverviewView: View {
                     
                     // Calendar section
                     VStack(alignment: .leading, spacing: 16) {
-                        Text(localizationManager.localizedString("fuelCalendar"))
+                        Text("Kalendář tankování")
                             .font(.headline)
                             .foregroundStyle(.primary)
                             .padding(.horizontal)
@@ -117,9 +116,9 @@ struct FuelOverviewView: View {
                     Spacer(minLength: 20)
                     }
                 }
-                .padding(.top, 16)
+                .padding(.top, 8)
             }
-            .navigationTitle(localizationManager.localizedString("fuel"))
+            .navigationTitle("Palivo")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .navigationBarTrailing) {
@@ -148,7 +147,6 @@ struct FuelEntryCard: View {
     let entry: FuelEntry
     @ObservedObject var viewModel: MechanicViewModel
     @State private var showingDeleteAlert = false
-    @ObservedObject var localizationManager = LocalizationManager.shared
     
     var body: some View {
         HStack(spacing: 12) {
@@ -216,16 +214,16 @@ struct FuelEntryCard: View {
             Button(role: .destructive) {
                 showingDeleteAlert = true
             } label: {
-                Label(localizationManager.localizedString("delete"), systemImage: "trash")
+                Label("Smazat", systemImage: "trash")
             }
         }
         .alert("Smazat tankování", isPresented: $showingDeleteAlert) {
             Button("Zrušit", role: .cancel) { }
-            Button(localizationManager.localizedString("delete"), role: .destructive) {
+            Button("Smazat", role: .destructive) {
                 viewModel.deleteFuelEntry(entry)
             }
         } message: {
-            Text(localizationManager.localizedString("confirmDeleteFuel").replacingOccurrences(of: "{date}", with: entry.date.formatted(.dateTime.day().month().year())))
+            Text("Opravdu chcete smazat tankování z \(entry.date.formatted(.dateTime.day().month().year()))?")
         }
     }
 }
@@ -234,7 +232,6 @@ struct FuelEntryCard: View {
 struct FuelCalendarView: View {
     let fuelEntries: [FuelEntry]
     @Binding var selectedDate: Date
-    @ObservedObject var localizationManager = LocalizationManager.shared
     
     private let calendar = Calendar.current
     private let dateFormatter = DateFormatter()
@@ -280,13 +277,7 @@ struct FuelCalendarView: View {
             LazyVGrid(columns: Array(repeating: GridItem(.flexible()), count: 7), spacing: 8) {
                 // Day headers
                 ForEach([
-                    localizationManager.localizedString("mon"),
-                    localizationManager.localizedString("tue"),
-                    localizationManager.localizedString("wed"),
-                    localizationManager.localizedString("thu"),
-                    localizationManager.localizedString("fri"),
-                    localizationManager.localizedString("sat"),
-                    localizationManager.localizedString("sun")
+                    "Po", "Út", "St", "Čt", "Pá", "So", "Ne"
                 ], id: \.self) { day in
                     Text(day)
                         .font(.caption)
@@ -372,12 +363,11 @@ struct CalendarDayView: View {
 // MARK: - Fuel Entry Detail Card
 struct FuelEntryDetailCard: View {
     let entry: FuelEntry
-    @ObservedObject var localizationManager = LocalizationManager.shared
     
     var body: some View {
             VStack(alignment: .leading, spacing: 12) {
                 HStack {
-                    Text(localizationManager.localizedString("fuelTitle"))
+                    Text("Tankování")
                         .font(.headline)
                         .foregroundStyle(.primary)
                     
@@ -386,7 +376,7 @@ struct FuelEntryDetailCard: View {
                 
                 VStack(alignment: .leading, spacing: 8) {
                     HStack {
-                        Text(localizationManager.localizedString("fuelDate") + ":")
+                        Text("Datum" + ":")
                             .font(.subheadline)
                             .foregroundStyle(.secondary)
                         Spacer()
@@ -396,7 +386,7 @@ struct FuelEntryDetailCard: View {
                     }
                     
                     HStack {
-                        Text(localizationManager.localizedString("fuelLocation") + ":")
+                        Text("Místo" + ":")
                             .font(.subheadline)
                             .foregroundStyle(.secondary)
                         Spacer()
@@ -406,7 +396,7 @@ struct FuelEntryDetailCard: View {
                     }
                     
                     HStack {
-                        Text(localizationManager.localizedString("fuelType") + ":")
+                        Text("Typ paliva" + ":")
                             .font(.subheadline)
                             .foregroundStyle(.secondary)
                         Spacer()
@@ -417,7 +407,7 @@ struct FuelEntryDetailCard: View {
                     }
                     
                     HStack {
-                        Text(localizationManager.localizedString("fuelAmount") + ":")
+                        Text("Množství" + ":")
                             .font(.subheadline)
                             .foregroundStyle(.secondary)
                         Spacer()
@@ -427,7 +417,7 @@ struct FuelEntryDetailCard: View {
                     }
                     
                     HStack {
-                        Text(localizationManager.localizedString("totalPrice") + ":")
+                        Text("Celková cena" + ":")
                             .font(.subheadline)
                             .foregroundStyle(.secondary)
                         Spacer()
@@ -437,7 +427,7 @@ struct FuelEntryDetailCard: View {
                     }
                     
                     HStack {
-                        Text(localizationManager.localizedString("fuelPricePerLiter") + ":")
+                        Text("Cena za litr" + ":")
                             .font(.subheadline)
                             .foregroundStyle(.secondary)
                         Spacer()
@@ -449,7 +439,7 @@ struct FuelEntryDetailCard: View {
                     
                     if !entry.notes.isEmpty {
                         VStack(alignment: .leading, spacing: 4) {
-                            Text(localizationManager.localizedString("fuelNotes") + ":")
+                            Text("Poznámky" + ":")
                                 .font(.subheadline)
                                 .foregroundStyle(.secondary)
                             Text(entry.notes)
@@ -469,7 +459,6 @@ struct FuelEntrySheet: View {
     @ObservedObject var viewModel: MechanicViewModel
     @Binding var selectedTab: Int
     @Environment(\.dismiss) private var dismiss
-    @ObservedObject var localizationManager = LocalizationManager.shared
     @State private var selectedDate = Date()
     @State private var fuelAmount = ""
     @State private var price = ""
@@ -508,7 +497,7 @@ struct FuelEntrySheet: View {
                             .offset(y: animateForm ? 0 : 20)
                             .animation(.easeOut(duration: 0.6), value: animateForm)
                         
-                        Text(localizationManager.localizedString("currentDateTimePrefilled"))
+                        Text("Aktuální datum a čas")
                             .font(.caption)
                             .foregroundStyle(.secondary)
                     }
@@ -533,12 +522,12 @@ struct FuelEntrySheet: View {
                 
                 Section("Množství a cena") {
                     HStack {
-                        Text(localizationManager.localizedString("fuelAmount"))
+                        Text("Množství")
                         Spacer()
                         TextField("0.0", text: $fuelAmount)
                             .keyboardType(.decimalPad)
                             .multilineTextAlignment(.trailing)
-                        Text(localizationManager.localizedString("liters"))
+                        Text("litrů")
                             .font(.subheadline)
                             .foregroundStyle(.secondary)
                     }
@@ -547,12 +536,12 @@ struct FuelEntrySheet: View {
                     .animation(.easeOut(duration: 0.6).delay(0.4), value: animateForm)
                     
                     HStack {
-                        Text(localizationManager.localizedString("fuelPricePerLiter"))
+                        Text("Cena za litr")
                         Spacer()
                         TextField("0.0", text: $pricePerLiter)
                             .keyboardType(.decimalPad)
                             .multilineTextAlignment(.trailing)
-                        Text(localizationManager.localizedString("pricePerLiterUnit"))
+                        Text("Kč/l")
                             .font(.subheadline)
                             .foregroundStyle(.secondary)
                     }
@@ -561,12 +550,12 @@ struct FuelEntrySheet: View {
                     .animation(.easeOut(duration: 0.6).delay(0.6), value: animateForm)
                     
                     HStack {
-                        Text(localizationManager.localizedString("totalPrice"))
+                        Text("Celková cena")
                         Spacer()
                         TextField("0.0", text: $price)
                             .keyboardType(.decimalPad)
                             .multilineTextAlignment(.trailing)
-                        Text(localizationManager.localizedString("currency"))
+                        Text("Kč")
                             .font(.subheadline)
                             .foregroundStyle(.secondary)
                     }
@@ -579,7 +568,7 @@ struct FuelEntrySheet: View {
                        let amount = fuelAmount.toDouble(), let pricePerL = pricePerLiter.toDouble(),
                        amount > 0 {
                         HStack {
-                            Text(localizationManager.localizedString("calculatedTotalPrice") + ":")
+                            Text("Vypočtená celková cena" + ":")
                                 .font(.subheadline)
                                 .foregroundStyle(.secondary)
                             
@@ -598,7 +587,7 @@ struct FuelEntrySheet: View {
                               let amount = fuelAmount.toDouble(), let totalPrice = price.toDouble(),
                               amount > 0 {
                         HStack {
-                            Text(localizationManager.localizedString("calculatedPricePerLiter") + ":")
+                            Text("Vypočtená cena za litr" + ":")
                                 .font(.subheadline)
                                 .foregroundStyle(.secondary)
                             
@@ -619,7 +608,7 @@ struct FuelEntrySheet: View {
                 Section("Místo tankování") {
                     VStack(alignment: .leading, spacing: 8) {
                         HStack {
-                            Text(localizationManager.localizedString("fuelStation"))
+                            Text("Čerpací stanice")
                             Spacer()
                             TextField("Zadejte stanici", text: $location)
                                 .multilineTextAlignment(.trailing)
@@ -692,7 +681,7 @@ struct FuelEntrySheet: View {
                     Button(action: {
                         saveFuelEntry()
                     }) {
-                        Text(localizationManager.localizedString("saveFuelEntry"))
+                        Text("Uložit tankování")
                             .frame(maxWidth: .infinity)
                             .padding(.vertical, 12)
                             .background(.blue)
@@ -713,18 +702,18 @@ struct FuelEntrySheet: View {
                     clearForm()
                     dismiss()
                 }) {
-                    Text(localizationManager.localizedString("ok"))
+                    Text("OK")
                         .frame(maxWidth: .infinity)
                         .padding(.vertical, 8)
                         .contentShape(Rectangle())
                 }
                 .buttonStyle(PlainButtonStyle())
             } message: {
-                Text(localizationManager.localizedString("fuelEntrySaved"))
+                Text("Tankování uloženo")
             }
             .alert("Chyba validace", isPresented: $showingValidationAlert) {
                 Button(action: { }) {
-                    Text(localizationManager.localizedString("ok"))
+                    Text("OK")
                         .frame(maxWidth: .infinity)
                         .padding(.vertical, 8)
                         .contentShape(Rectangle())
