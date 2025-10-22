@@ -336,7 +336,7 @@ class MechanicViewModel: ObservableObject {
                                     workingHours: 0.0,
                                     kilometers: 0.0,
                                     city: "",
-                                    notes: "Lékař",
+                                    notes: "Nemoc / Lékař",
                                     isCompleted: true,
                                     dayType: .sick
                                 )
@@ -388,7 +388,7 @@ class MechanicViewModel: ObservableObject {
                 workingHours: 0.0,
                 kilometers: 0.0,
                 city: "",
-                notes: "Lékař/Nemoc",
+                notes: "Nemoc / Lékař",
                 isCompleted: true,
                 dayType: .sick
             )

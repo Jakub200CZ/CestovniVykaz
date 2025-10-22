@@ -327,6 +327,10 @@ struct CustomerView: View {
                     .animation(.easeOut(duration: 0.6).delay(0.8), value: animateForm)
                 }
             }
+            .onTapGesture {
+                // Zavřít klávesnici při kliknutí mimo textové pole
+                focusedField = nil
+            }
             .navigationTitle("Nový zákazník")
             .navigationBarTitleDisplayMode(.inline)
             .alert("Úspěch", isPresented: $showingSuccessAlert) {
@@ -464,13 +468,13 @@ struct CustomerView: View {
                 
                 Section("Jízda") {
                     HStack {
-                        Text("Město")
+                        Text("Kilometry")
                         Spacer()
                         TextField("0", text: $kilometers)
                             .keyboardType(.decimalPad)
                             .multilineTextAlignment(.trailing)
                             .focused($focusedField, equals: .kilometers)
-                        Text("Město")
+                        Text("Km")
                             .font(.subheadline)
                             .foregroundStyle(.secondary)
                     }
@@ -529,7 +533,7 @@ struct CustomerView: View {
                     Button(action: {
                         updateCustomer()
                     }) {
-                        Text("Město")
+                        Text("Uložit změny")
                             .frame(maxWidth: .infinity)
                             .padding(.vertical, 12)
                             .background(.blue)

@@ -695,6 +695,10 @@ struct FuelEntrySheet: View {
                     .animation(.easeOut(duration: 0.6).delay(1.4), value: animateForm)
                 }
             }
+            .onTapGesture {
+                // Zavřít klávesnici při kliknutí mimo textové pole
+                hideKeyboard()
+            }
             .navigationTitle("Nové tankování")
             .navigationBarTitleDisplayMode(.inline)
             .alert("Úspěch", isPresented: $showingSuccessAlert) {

@@ -281,16 +281,16 @@ struct MonthDetailView: View, Identifiable {
                             DetailRow(title: "Dovolená", value: "\(report.vacationDays) \("Dny")")
                         }
                         if report.sickDays > 0 {
-                            DetailRow(title: "Lékař/Nemoc", value: "\(report.sickDays) dny")
+                            DetailRow(title: "Nemoc / Lékař", value: "\(report.sickDays) dny")
                         }
                     }
                     
                     
-                    // Kalendářní náhled - zobrazit vždy
-                    Section {
-                        MonthCalendarView(report: report)
-                            .padding(.vertical, 8)
-                    }
+                    // Kalendářní náhled - dočasně odstraněn kvůli problémům s layoutem
+                    // Section {
+                    //     MonthCalendarView(report: report)
+                    //         .padding(.vertical, 8)
+                    // }
                     
                     if !report.workDays.isEmpty {
                         Section("Pracovní dny (\(report.workDays.count))") {
@@ -740,11 +740,16 @@ struct EditWorkDaySheet: View {
                         Text("(víkend/svátek)")
                             .foregroundStyle(.red)
                             .font(.caption)
-                    } else if hasExistingRecord(for: workDay.date, excluding: workDay) {
-                        Text("(již má záznam)")
-                            .foregroundStyle(.orange)
-                            .font(.caption)
                     }
+                }
+                
+                Section("Typ dne") {
+                    Picker("Typ dne", selection: $workDay.dayType) {
+                        ForEach(DayType.allCases, id: \.self) { dayType in
+                            Text(dayType.displayName).tag(dayType)
+                        }
+                    }
+                    .pickerStyle(.segmented)
                 }
                 TimeInputField(
                     title: "Ujeté hodiny",
@@ -772,6 +777,12 @@ struct EditWorkDaySheet: View {
                         .multilineTextAlignment(.trailing)
                 }
                 HStack {
+                    Text("Zákazník")
+                    Spacer()
+                    TextField("Zadejte jméno zákazníka", text: $workDay.customerName)
+                        .multilineTextAlignment(.trailing)
+                }
+                HStack {
                     Text("Město")
                     Spacer()
                     TextField("Zadejte město", text: $workDay.city)
@@ -780,6 +791,30 @@ struct EditWorkDaySheet: View {
                 Section("Poznámka") {
                     TextField("Poznámka", text: $workDay.notes)
                 }
+                
+                // Tlačítko pro uložení změn
+                Section {
+                    Button(action: {
+                        if validate() {
+                            // Update workDay with parsed values
+                            workDay.drivingHours = drivingHoursText.toDouble() ?? 0.0
+                            workDay.workingHours = workingHoursText.toDouble() ?? 0.0
+                            workDay.kilometers = kilometersText.toDouble() ?? 0.0
+                            viewModel.updateWorkDay(workDay, in: report)
+                            dismiss()
+                            onDismiss()
+                        }
+                    }) {
+                        Text("Uložit změny")
+                            .frame(maxWidth: .infinity)
+                            .padding(.vertical, 12)
+                            .background(.blue)
+                            .foregroundStyle(.white)
+                            .clipShape(RoundedRectangle(cornerRadius: 8))
+                            .contentShape(Rectangle())
+                    }
+                    .buttonStyle(PlainButtonStyle())
+                }
                 if !validationErrors.isEmpty {
                     Section {
                         ForEach(validationErrors, id: \.self) { err in
@@ -787,6 +822,10 @@ struct EditWorkDaySheet: View {
                         }
                     }
                 }
+            }
+            .onTapGesture {
+                // Zavřít klávesnici při kliknutí mimo textové pole
+                focusedField = nil
             }
             .navigationTitle("Upravit záznam")
             .navigationBarTitleDisplayMode(.inline)
@@ -815,9 +854,17 @@ struct EditWorkDaySheet: View {
     
     private func validate() -> Bool {
         var errors: [String] = []
-        if workDay.city.trimmingCharacters(in: .whitespaces).isEmpty {
-            errors.append("Město je povinné")
+        
+        // Validace pouze pro pracovní dny
+        if workDay.dayType == .work {
+            if workDay.customerName.trimmingCharacters(in: .whitespaces).isEmpty {
+                errors.append("Jméno zákazníka je povinné")
+            }
+            if workDay.city.trimmingCharacters(in: .whitespaces).isEmpty {
+                errors.append("Město je povinné")
+            }
         }
+        
         let drivingHours = drivingHoursText.toDouble() ?? 0.0
         let workingHours = workingHoursText.toDouble() ?? 0.0
         let kilometers = kilometersText.toDouble() ?? 0.0
@@ -883,395 +930,6 @@ struct EditWorkDaySheet: View {
         let calendar = Calendar.current
         return holidays.contains { holiday in
             calendar.isDate(date, inSameDayAs: holiday)
-        }
-    }
-}
-
-// Kalendářní náhled pro měsíc
-struct MonthCalendarView: View {
-    let report: MonthlyReport?
-    
-    private let calendar = Calendar.current
-    
-    private var weekDays: [String] {
-        [
-            "Po", "Út", "St", "Čt", "Pá", "So", "Ne"
-        ]
-    }
-    
-    var body: some View {
-        VStack(spacing: 8) {
-            Text("Kalendář měsíce")
-                .font(.headline)
-                .foregroundStyle(.primary)
-            
-            // Názvy dnů v týdnu
-            HStack {
-                ForEach(weekDays, id: \.self) { day in
-                    Text(day)
-                        .font(.caption)
-                        .fontWeight(.medium)
-                        .frame(maxWidth: .infinity)
-                        .foregroundStyle(.secondary)
-                }
-            }
-            
-            // Dny v měsíci
-            LazyVGrid(columns: Array(repeating: GridItem(.flexible()), count: 7), spacing: 4) {
-                ForEach(Array(daysInMonth.enumerated()), id: \.offset) { index, date in
-                    if let date = date {
-                        DayCell(
-                            date: date,
-                            isWorkDay: isWorkDay(date),
-                            hasRecord: hasRecord(for: date),
-                            isCurrentMonth: isCurrentMonth(date),
-                            dayType: getDayType(for: date)
-                        )
-                    } else {
-                        Color.clear
-                            .frame(height: 30)
-                    }
-                }
-            }
-            
-            // Legenda - zobrazit vždy
-            VStack(spacing: 8) {
-                Text("Legenda")
-                    .font(.caption)
-                    .fontWeight(.medium)
-                    .foregroundStyle(.secondary)
-                
-                VStack(spacing: 8) {
-                    HStack(spacing: 16) {
-                        HStack(spacing: 4) {
-                            Circle()
-                                .fill(.green)
-                                .frame(width: 12, height: 12)
-                            Text("Pracovní čas")
-                                .font(.caption2)
-                                .foregroundStyle(.secondary)
-                        }
-                        
-                        HStack(spacing: 4) {
-                            Circle()
-                                .fill(.blue)
-                                .frame(width: 12, height: 12)
-                            Text("Dovolená")
-                                .font(.caption2)
-                                .foregroundStyle(.secondary)
-                        }
-                        
-                        Spacer()
-                    }
-                    
-                    HStack(spacing: 16) {
-                        HStack(spacing: 4) {
-                            Circle()
-                                .fill(.red)
-                                .frame(width: 12, height: 12)
-                            Text("Lékař/Nemoc")
-                                .font(.caption2)
-                                .foregroundStyle(.secondary)
-                        }
-                        
-                        HStack(spacing: 4) {
-                            Circle()
-                                .fill(Color(.systemGray5))
-                                .frame(width: 12, height: 12)
-                            Text("Pracovní den")
-                                .font(.caption2)
-                                .foregroundStyle(.secondary)
-                        }
-                        
-                        Spacer()
-                    }
-                }
-            }
-        }
-        .padding()
-        .background(Color(.systemGray6))
-        .clipShape(RoundedRectangle(cornerRadius: 8))
-    }
-    
-    // Kontrola, zda je datum pracovní den
-    private func isWorkDay(_ date: Date) -> Bool {
-        let weekday = calendar.component(.weekday, from: date)
-        return weekday != 1 && weekday != 7 // 1 = neděle, 7 = sobota
-    }
-    
-    // Kontrola, zda má datum záznam
-    private func hasRecord(for date: Date) -> Bool {
-        guard let report = report else { return false }
-        return report.workDays.contains { workDay in
-            calendar.isDate(workDay.date, inSameDayAs: date)
-        }
-    }
-    
-    // Kontrola, zda je datum v aktuálním měsíci
-    private func isCurrentMonth(_ date: Date) -> Bool {
-        guard let report = report else { return false }
-        return calendar.isDate(date, equalTo: report.month, toGranularity: .month)
-    }
-    
-    // Získání typu dne
-    private func getDayType(for date: Date) -> DayType? {
-        guard let report = report else { return nil }
-        if let workDay = report.workDays.first(where: { workDay in
-            calendar.isDate(workDay.date, inSameDayAs: date)
-        }) {
-            return workDay.dayType
-        }
-        return nil
-    }
-    
-    // Generování dnů v měsíci
-    private var daysInMonth: [Date?] {
-        guard let report = report else { return [] }
-        let range = calendar.range(of: .day, in: .month, for: report.month) ?? 1..<29
-        let firstDayOfMonth = report.month
-        let firstWeekday = calendar.component(.weekday, from: firstDayOfMonth)
-        
-        // Převod na pondělí = 1, neděle = 7
-        let adjustedFirstWeekday = firstWeekday == 1 ? 7 : firstWeekday - 1
-        
-        var days: [Date?] = []
-        
-        // Prázdné dny před začátkem měsíce
-        for _ in 1..<adjustedFirstWeekday {
-            days.append(nil)
-        }
-        
-        // Dny v měsíci
-        for day in range {
-            if let date = calendar.date(byAdding: .day, value: day - 1, to: report.month) {
-                days.append(date)
-            }
-        }
-        
-        return days
-    }
-}
-
-// Prázdný kalendář pro měsíc bez záznamů
-struct EmptyMonthCalendarView: View {
-    let month: Date
-    
-    private let calendar = Calendar.current
-    private let weekDays = ["Po", "Út", "St", "Čt", "Pá", "So", "Ne"]
-    
-    var body: some View {
-        VStack(spacing: 8) {
-            Text("Kalendář měsíce")
-                .font(.headline)
-                .foregroundStyle(.primary)
-            
-            // Názvy dnů v týdnu
-            HStack {
-                ForEach(weekDays, id: \.self) { day in
-                    Text(day)
-                        .font(.caption)
-                        .fontWeight(.medium)
-                        .frame(maxWidth: .infinity)
-                        .foregroundStyle(.secondary)
-                }
-            }
-            
-            // Dny v měsíci
-            LazyVGrid(columns: Array(repeating: GridItem(.flexible()), count: 7), spacing: 4) {
-                ForEach(Array(daysInMonth.enumerated()), id: \.offset) { index, date in
-                    if let date = date {
-                        EmptyDayCell(
-                            date: date,
-                            isWorkDay: isWorkDay(date),
-                            isCurrentMonth: isCurrentMonth(date)
-                        )
-                    } else {
-                        Color.clear
-                            .frame(height: 30)
-                    }
-                }
-            }
-            
-            // Legenda - zobrazit vždy
-            VStack(spacing: 8) {
-                Text("Legenda")
-                    .font(.caption)
-                    .fontWeight(.medium)
-                    .foregroundStyle(.secondary)
-                
-                VStack(spacing: 8) {
-                    HStack(spacing: 16) {
-                        HStack(spacing: 4) {
-                            Circle()
-                                .fill(.green)
-                                .frame(width: 12, height: 12)
-                            Text("Pracovní čas")
-                                .font(.caption2)
-                                .foregroundStyle(.secondary)
-                        }
-                        
-                        HStack(spacing: 4) {
-                            Circle()
-                                .fill(.blue)
-                                .frame(width: 12, height: 12)
-                            Text("Dovolená")
-                                .font(.caption2)
-                                .foregroundStyle(.secondary)
-                        }
-                        
-                        Spacer()
-                    }
-                    
-                    HStack(spacing: 16) {
-                        HStack(spacing: 4) {
-                            Circle()
-                                .fill(.red)
-                                .frame(width: 12, height: 12)
-                            Text("Lékař/Nemoc")
-                                .font(.caption2)
-                                .foregroundStyle(.secondary)
-                        }
-                        
-                        HStack(spacing: 4) {
-                            Circle()
-                                .fill(Color(.systemGray5))
-                                .frame(width: 12, height: 12)
-                            Text("Pracovní den")
-                                .font(.caption2)
-                                .foregroundStyle(.secondary)
-                        }
-                        
-                        Spacer()
-                    }
-                }
-            }
-        }
-        .padding()
-        .background(Color(.systemGray6))
-        .clipShape(RoundedRectangle(cornerRadius: 8))
-    }
-    
-    // Kontrola, zda je datum pracovní den
-    private func isWorkDay(_ date: Date) -> Bool {
-        let weekday = calendar.component(.weekday, from: date)
-        return weekday != 1 && weekday != 7 // 1 = neděle, 7 = sobota
-    }
-    
-    // Kontrola, zda je datum v aktuálním měsíci
-    private func isCurrentMonth(_ date: Date) -> Bool {
-        return calendar.isDate(date, equalTo: month, toGranularity: .month)
-    }
-    
-    // Generování dnů v měsíci
-    private var daysInMonth: [Date?] {
-        let range = calendar.range(of: .day, in: .month, for: month) ?? 1..<29
-        let firstDayOfMonth = month
-        let firstWeekday = calendar.component(.weekday, from: firstDayOfMonth)
-        
-        // Převod na pondělí = 1, neděle = 7
-        let adjustedFirstWeekday = firstWeekday == 1 ? 7 : firstWeekday - 1
-        
-        var days: [Date?] = []
-        
-        // Prázdné dny před začátkem měsíce
-        for _ in 1..<adjustedFirstWeekday {
-            days.append(nil)
-        }
-        
-        // Dny v měsíci
-        for day in range {
-            if let date = calendar.date(byAdding: .day, value: day - 1, to: month) {
-                days.append(date)
-            }
-        }
-        
-        return days
-    }
-}
-
-// Prázdná buňka pro den v kalendáři
-struct EmptyDayCell: View {
-    let date: Date
-    let isWorkDay: Bool
-    let isCurrentMonth: Bool
-    
-    var body: some View {
-        Text("\(Calendar.current.component(.day, from: date))")
-            .font(.caption)
-            .fontWeight(.regular)
-            .frame(width: 30, height: 30)
-            .background(backgroundColor)
-            .foregroundStyle(textColor)
-            .clipShape(Circle())
-    }
-    
-    private var backgroundColor: Color {
-        if !isCurrentMonth {
-            return Color.clear
-        } else if isWorkDay {
-            return Color(.systemGray5)
-        } else {
-            return Color.clear
-        }
-    }
-    
-    private var textColor: Color {
-        if !isCurrentMonth {
-            return .secondary
-        } else if isWorkDay {
-            return .primary
-        } else {
-            return .secondary
-        }
-    }
-}
-
-// Buňka pro den v kalendáři
-struct DayCell: View {
-    let date: Date
-    let isWorkDay: Bool
-    let hasRecord: Bool
-    let isCurrentMonth: Bool
-    let dayType: DayType?
-    
-    var body: some View {
-        Text("\(Calendar.current.component(.day, from: date))")
-            .font(.caption)
-            .fontWeight(hasRecord ? .bold : .regular)
-            .frame(width: 30, height: 30)
-            .background(backgroundColor)
-            .foregroundStyle(textColor)
-            .clipShape(Circle())
-    }
-    
-    private var backgroundColor: Color {
-        if !isCurrentMonth {
-            return Color.clear
-        } else if let dayType = dayType {
-            switch dayType {
-            case .work:
-                return .green
-            case .vacation:
-                return .blue
-            case .sick:
-                return .red
-            }
-        } else if isWorkDay {
-            return Color(.systemGray5)
-        } else {
-            return Color.clear
-        }
-    }
-    
-    private var textColor: Color {
-        if !isCurrentMonth {
-            return .secondary
-        } else if dayType != nil {
-            return .white
-        } else if isWorkDay {
-            return .primary
-        } else {
-            return .secondary
         }
     }
 }

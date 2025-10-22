@@ -15,9 +15,9 @@ struct StatisticsView: View {
     @AppStorage("useTimePicker") private var useTimePicker = false
     
     enum TimeRange: String, CaseIterable {
-        case currentMonth = "Tento měsíc"
-        case lastMonth = "Minulý měsíc"
-        case last3Months = "Poslední 3 měsíce"
+        case currentMonth = "Tento"
+        case lastMonth = "Minulý"
+        case last3Months = "Poslední 3"
         case allTime = "Celkově"
     }
     
@@ -87,6 +87,24 @@ struct StatisticsView: View {
         return (totalHours, totalKilometers, totalFuelCost)
     }
     
+    // Formátování kilometrů pro lepší čitelnost
+    private func formatKilometers(_ kilometers: Double) -> String {
+        if kilometers >= 1000 {
+            return String(format: "%.1fK", kilometers / 1000)
+        } else {
+            return String(format: "%.0f", kilometers)
+        }
+    }
+    
+    // Formátování měny pro lepší čitelnost
+    private func formatCurrency(_ amount: Double) -> String {
+        if amount >= 1000 {
+            return String(format: "%.1fK", amount / 1000)
+        } else {
+            return String(format: "%.0f", amount)
+        }
+    }
+    
     var body: some View {
         ScrollView {
                 VStack(spacing: 20) {
@@ -106,14 +124,14 @@ struct StatisticsView: View {
                             
                             StatCard(
                                 title: "Celkem km",
-                                value: String(format: "%.0f", periodStats.totalKilometers),
+                                value: formatKilometers(periodStats.totalKilometers),
                                 icon: "speedometer",
                                 color: DesignSystem.Colors.secondary
                             )
                             
                             StatCard(
-                                title: "Výdaje za palivo",
-                                value: String(format: "%.0f Kč", periodStats.totalFuelCost),
+                                title: "Palivo",
+                                value: "\(formatCurrency(periodStats.totalFuelCost)) Kč",
                                 icon: "fuelpump.fill",
                                 color: DesignSystem.Colors.accent
                             )
@@ -201,6 +219,24 @@ struct MonthlyStatRow: View {
         }.reduce(0) { $0 + $1.price }
     }
     
+    // Formátování kilometrů pro lepší čitelnost
+    private func formatKilometers(_ kilometers: Double) -> String {
+        if kilometers >= 1000 {
+            return String(format: "%.1fK", kilometers / 1000)
+        } else {
+            return String(format: "%.0f", kilometers)
+        }
+    }
+    
+    // Formátování měny pro lepší čitelnost
+    private func formatCurrency(_ amount: Double) -> String {
+        if amount >= 1000 {
+            return String(format: "%.1fK", amount / 1000)
+        } else {
+            return String(format: "%.0f", amount)
+        }
+    }
+    
     var body: some View {
         HStack(spacing: 16) {
             // Month info
@@ -217,17 +253,17 @@ struct MonthlyStatRow: View {
             
             Spacer()
             
-            // Stats in a grid layout - 4 columns
-            HStack(spacing: 12) {
+            // Stats in a grid layout - 3 columns (removed work days)
+            HStack(spacing: 20) {
                 // Hours
                 VStack(alignment: .trailing, spacing: 2) {
                     Text(report.totalHours.formattedTime(useTimePicker: useTimePicker))
-                        .font(.system(size: 14, weight: .bold, design: .rounded))
+                        .font(.system(size: 13, weight: .bold, design: .rounded))
                         .foregroundStyle(.blue)
                         .lineLimit(1)
-                        .minimumScaleFactor(0.8)
+                        .minimumScaleFactor(0.7)
                     
-                    Text("hodin")
+                    Text("Hodin")
                         .font(.system(size: 9, weight: .medium))
                         .foregroundStyle(.secondary)
                 }
@@ -235,13 +271,13 @@ struct MonthlyStatRow: View {
                 
                 // Kilometers
                 VStack(alignment: .trailing, spacing: 2) {
-                    Text("\(Int(report.totalKilometers))")
-                        .font(.system(size: 14, weight: .bold, design: .rounded))
+                    Text(formatKilometers(report.totalKilometers))
+                        .font(.system(size: 13, weight: .bold, design: .rounded))
                         .foregroundStyle(.green)
                         .lineLimit(1)
-                        .minimumScaleFactor(0.8)
+                        .minimumScaleFactor(0.7)
                     
-                    Text("km")
+                    Text("Km")
                         .font(.system(size: 9, weight: .medium))
                         .foregroundStyle(.secondary)
                 }
@@ -250,18 +286,18 @@ struct MonthlyStatRow: View {
                 // Fuel cost
                 VStack(alignment: .trailing, spacing: 2) {
                     if monthlyFuelCost > 0 {
-                        Text("\(Int(monthlyFuelCost))")
-                            .font(.system(size: 14, weight: .bold, design: .rounded))
+                        Text(formatCurrency(monthlyFuelCost))
+                            .font(.system(size: 13, weight: .bold, design: .rounded))
                             .foregroundStyle(.orange)
                             .lineLimit(1)
-                            .minimumScaleFactor(0.8)
+                            .minimumScaleFactor(0.7)
                         
                         Text("Kč")
                             .font(.system(size: 9, weight: .medium))
                             .foregroundStyle(.secondary)
                     } else {
                         Text("-")
-                            .font(.system(size: 14, weight: .bold, design: .rounded))
+                            .font(.system(size: 13, weight: .bold, design: .rounded))
                             .foregroundStyle(.secondary)
                             .lineLimit(1)
                         
@@ -269,20 +305,6 @@ struct MonthlyStatRow: View {
                             .font(.system(size: 9, weight: .medium))
                             .foregroundStyle(.secondary)
                     }
-                }
-                .frame(maxWidth: .infinity)
-                
-                // Work days count
-                VStack(alignment: .trailing, spacing: 2) {
-                    Text("\(report.workDays.count)")
-                        .font(.system(size: 14, weight: .bold, design: .rounded))
-                        .foregroundStyle(.purple)
-                        .lineLimit(1)
-                        .minimumScaleFactor(0.8)
-                    
-                    Text("dnů")
-                        .font(.system(size: 9, weight: .medium))
-                        .foregroundStyle(.secondary)
                 }
                 .frame(maxWidth: .infinity)
             }

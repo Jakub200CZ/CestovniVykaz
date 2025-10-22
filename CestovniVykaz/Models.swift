@@ -128,7 +128,7 @@ enum DayType: String, Codable, CaseIterable {
         case .vacation:
             return "Dovolená"
         case .sick:
-            return "Nemoc"
+            return "Nemoc / Lékař"
         }
     }
     

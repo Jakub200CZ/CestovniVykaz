@@ -323,7 +323,6 @@ struct WorkDayEntryView: View {
                     }
                     .onChange(of: selectedDate) { _, newDate in
                         // Vždy vytvořit nový záznam - ne načítat existující
-                        isEditingExistingRecord = false
                         clearFormForNewRecord()
                         
                         // Zavřít DatePicker po výběru
@@ -423,8 +422,7 @@ struct WorkDayEntryView: View {
                             useTimePicker: useTimePicker,
                             placeholder: "0.0h",
                             focusedField: $focusedField,
-                            field: .drivingHours,
-                            disabled: isEditingExistingRecord
+                            field: .drivingHours
                         )
                         .opacity(animateForm ? 1.0 : 0.0)
                         .offset(y: animateForm ? 0 : 20)
@@ -437,8 +435,7 @@ struct WorkDayEntryView: View {
                             useTimePicker: useTimePicker,
                             placeholder: "0.0h",
                             focusedField: $focusedField,
-                            field: .workingHours,
-                            disabled: isEditingExistingRecord
+                            field: .workingHours
                         )
                         .opacity(animateForm ? 1.0 : 0.0)
                         .offset(y: animateForm ? 0 : 20)
