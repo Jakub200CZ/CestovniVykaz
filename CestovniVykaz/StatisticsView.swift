@@ -179,6 +179,20 @@ struct MonthlyStatRow: View {
         }
     }
     
+    // Formátování měsíců v češtině
+    private func formatMonthYear(_ date: Date) -> String {
+        let calendar = Calendar.current
+        let month = calendar.component(.month, from: date)
+        let year = calendar.component(.year, from: date)
+        
+        let monthNames = [
+            "leden", "únor", "březen", "duben", "květen", "červen",
+            "červenec", "srpen", "září", "říjen", "listopad", "prosinec"
+        ]
+        
+        return "\(monthNames[month - 1]) \(year)"
+    }
+    
     // Get fuel cost for this month
     private var monthlyFuelCost: Double {
         let calendar = Calendar.current
@@ -191,7 +205,7 @@ struct MonthlyStatRow: View {
         HStack(spacing: 16) {
             // Month info
             VStack(alignment: .leading, spacing: 2) {
-                Text(report.month.formatted(.dateTime.month().year()))
+                Text(formatMonthYear(report.month))
                     .font(.system(size: 15, weight: .semibold))
                     .foregroundStyle(.primary)
                 
@@ -203,50 +217,74 @@ struct MonthlyStatRow: View {
             
             Spacer()
             
-            // Stats in a grid layout
-            HStack(spacing: 20) {
+            // Stats in a grid layout - 4 columns
+            HStack(spacing: 12) {
                 // Hours
                 VStack(alignment: .trailing, spacing: 2) {
                     Text(report.totalHours.formattedTime(useTimePicker: useTimePicker))
-                        .font(.system(size: 16, weight: .bold, design: .rounded))
+                        .font(.system(size: 14, weight: .bold, design: .rounded))
                         .foregroundStyle(.blue)
+                        .lineLimit(1)
+                        .minimumScaleFactor(0.8)
                     
                     Text("hodin")
-                        .font(.system(size: 10, weight: .medium))
+                        .font(.system(size: 9, weight: .medium))
                         .foregroundStyle(.secondary)
                 }
+                .frame(maxWidth: .infinity)
                 
                 // Kilometers
                 VStack(alignment: .trailing, spacing: 2) {
                     Text("\(Int(report.totalKilometers))")
-                        .font(.system(size: 16, weight: .bold, design: .rounded))
+                        .font(.system(size: 14, weight: .bold, design: .rounded))
                         .foregroundStyle(.green)
+                        .lineLimit(1)
+                        .minimumScaleFactor(0.8)
                     
                     Text("km")
-                        .font(.system(size: 10, weight: .medium))
+                        .font(.system(size: 9, weight: .medium))
                         .foregroundStyle(.secondary)
                 }
+                .frame(maxWidth: .infinity)
                 
                 // Fuel cost
                 VStack(alignment: .trailing, spacing: 2) {
                     if monthlyFuelCost > 0 {
                         Text("\(Int(monthlyFuelCost))")
-                            .font(.system(size: 16, weight: .bold, design: .rounded))
+                            .font(.system(size: 14, weight: .bold, design: .rounded))
                             .foregroundStyle(.orange)
+                            .lineLimit(1)
+                            .minimumScaleFactor(0.8)
                         
                         Text("Kč")
-                            .font(.system(size: 10, weight: .medium))
+                            .font(.system(size: 9, weight: .medium))
                             .foregroundStyle(.secondary)
                     } else {
                         Text("-")
-                            .font(.system(size: 16, weight: .bold, design: .rounded))
+                            .font(.system(size: 14, weight: .bold, design: .rounded))
                             .foregroundStyle(.secondary)
+                            .lineLimit(1)
                         
                         Text("Kč")
-                            .font(.system(size: 10, weight: .medium))
+                            .font(.system(size: 9, weight: .medium))
                             .foregroundStyle(.secondary)
                     }
                 }
+                .frame(maxWidth: .infinity)
+                
+                // Work days count
+                VStack(alignment: .trailing, spacing: 2) {
+                    Text("\(report.workDays.count)")
+                        .font(.system(size: 14, weight: .bold, design: .rounded))
+                        .foregroundStyle(.purple)
+                        .lineLimit(1)
+                        .minimumScaleFactor(0.8)
+                    
+                    Text("dnů")
+                        .font(.system(size: 9, weight: .medium))
+                        .foregroundStyle(.secondary)
+                }
+                .frame(maxWidth: .infinity)
             }
         }
         .padding(.horizontal, 16)

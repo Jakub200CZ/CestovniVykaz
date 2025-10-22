@@ -262,15 +262,48 @@ struct CustomerView: View {
                     .offset(y: animateForm ? 0 : 20)
                     .animation(.easeOut(duration: 0.6).delay(0.4), value: animateForm)
                     
-                    TimeInputField(
-                        title: "Čas jízdy",
-                        textValue: $drivingTime,
-                        timeValue: $drivingTimePicker,
-                        useTimePicker: useTimePicker,
-                        placeholder: "0.0",
-                        focusedField: $focusedField,
-                        field: .drivingTime
-                    )
+                    HStack {
+                        Text("Čas jízdy")
+                        Spacer()
+                        
+                        if useTimePicker {
+                            DatePicker("", selection: $drivingTimePicker, displayedComponents: .hourAndMinute)
+                                .datePickerStyle(.compact)
+                                .labelsHidden()
+                                .onChange(of: drivingTimePicker) { _, newValue in
+                                    // Převést čas na desetinné hodiny pro uložení
+                                    let calendar = Calendar.current
+                                    let components = calendar.dateComponents([.hour, .minute], from: newValue)
+                                    let hours = Double(components.hour ?? 0)
+                                    let minutes = Double(components.minute ?? 0)
+                                    let decimalHours = hours + (minutes / 60.0)
+                                    drivingTime = String(format: "%.1f", decimalHours)
+                                }
+                        } else {
+                            TextField("0.0", text: $drivingTime)
+                                .keyboardType(.decimalPad)
+                                .multilineTextAlignment(.trailing)
+                                .focused($focusedField, equals: .drivingTime)
+                                .onChange(of: drivingTime) { _, newValue in
+                                    // Převést desetinné hodiny na čas pro time picker
+                                    if let decimalHours = newValue.toDouble() {
+                                        let hours = Int(decimalHours)
+                                        let minutes = Int((decimalHours - Double(hours)) * 60)
+                                        let calendar = Calendar.current
+                                        var components = DateComponents()
+                                        components.hour = hours
+                                        components.minute = minutes
+                                        if let date = calendar.date(from: components) {
+                                            drivingTimePicker = date
+                                        }
+                                    }
+                                }
+                        }
+                        
+                        Text("h")
+                            .font(.subheadline)
+                            .foregroundStyle(.secondary)
+                    }
                     .opacity(animateForm ? 1.0 : 0.0)
                     .offset(y: animateForm ? 0 : 20)
                     .animation(.easeOut(duration: 0.6).delay(0.6), value: animateForm)
@@ -445,15 +478,48 @@ struct CustomerView: View {
                     .offset(y: animateForm ? 0 : 20)
                     .animation(.easeOut(duration: 0.6).delay(0.4), value: animateForm)
                     
-                    TimeInputField(
-                        title: "Čas jízdy",
-                        textValue: $drivingTime,
-                        timeValue: $drivingTimePicker,
-                        useTimePicker: useTimePicker,
-                        placeholder: "0.0",
-                        focusedField: $focusedField,
-                        field: .drivingTime
-                    )
+                    HStack {
+                        Text("Čas jízdy")
+                        Spacer()
+                        
+                        if useTimePicker {
+                            DatePicker("", selection: $drivingTimePicker, displayedComponents: .hourAndMinute)
+                                .datePickerStyle(.compact)
+                                .labelsHidden()
+                                .onChange(of: drivingTimePicker) { _, newValue in
+                                    // Převést čas na desetinné hodiny pro uložení
+                                    let calendar = Calendar.current
+                                    let components = calendar.dateComponents([.hour, .minute], from: newValue)
+                                    let hours = Double(components.hour ?? 0)
+                                    let minutes = Double(components.minute ?? 0)
+                                    let decimalHours = hours + (minutes / 60.0)
+                                    drivingTime = String(format: "%.1f", decimalHours)
+                                }
+                        } else {
+                            TextField("0.0", text: $drivingTime)
+                                .keyboardType(.decimalPad)
+                                .multilineTextAlignment(.trailing)
+                                .focused($focusedField, equals: .drivingTime)
+                                .onChange(of: drivingTime) { _, newValue in
+                                    // Převést desetinné hodiny na čas pro time picker
+                                    if let decimalHours = newValue.toDouble() {
+                                        let hours = Int(decimalHours)
+                                        let minutes = Int((decimalHours - Double(hours)) * 60)
+                                        let calendar = Calendar.current
+                                        var components = DateComponents()
+                                        components.hour = hours
+                                        components.minute = minutes
+                                        if let date = calendar.date(from: components) {
+                                            drivingTimePicker = date
+                                        }
+                                    }
+                                }
+                        }
+                        
+                        Text("h")
+                            .font(.subheadline)
+                            .foregroundStyle(.secondary)
+                    }
                     .opacity(animateForm ? 1.0 : 0.0)
                     .offset(y: animateForm ? 0 : 20)
                     .animation(.easeOut(duration: 0.6).delay(0.6), value: animateForm)

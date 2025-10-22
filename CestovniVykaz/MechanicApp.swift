@@ -107,7 +107,6 @@ struct WorkDayEntryView: View {
     @State private var showingCitySuggestions = false
     @State private var showingCustomerSuggestions = false
     @State private var isSelectingSuggestion = false
-    @State private var isEditingExistingRecord = false
     @State private var selectedDayType: DayType = .work
     @State private var showingDatePicker = false
     @State private var animateForm = false
@@ -164,10 +163,6 @@ struct WorkDayEntryView: View {
         }
     }
     
-    // Kontrola, zda je datum vybratelné
-    private func isSelectable(_ date: Date) -> Bool {
-        return isWorkDay(date) && !isHoliday(date)
-    }
     
     // Kontrola, zda již existuje záznam pro dané datum
     private func hasExistingRecord(for date: Date) -> Bool {
@@ -183,9 +178,9 @@ struct WorkDayEntryView: View {
         }
     }
     
-    // Kontrola, zda je datum dostupné pro nový záznam
+    // Kontrola, zda je datum dostupné pro nový záznam - nyní vždy true (umožnit více výkazů za den)
     private func isAvailableForNewRecord(_ date: Date) -> Bool {
-        return isSelectable(date) && !hasExistingRecord(for: date)
+        return true
     }
     
     // Common cities for autocomplete (unikátní)
@@ -309,25 +304,6 @@ struct WorkDayEntryView: View {
             VStack(spacing: 0) {
                 
                 Form {
-                // Informační text pro existující záznam
-                if isEditingExistingRecord {
-                    Section {
-                        VStack {
-                            Text("Existující záznam")
-                                .font(.headline)
-                                .foregroundStyle(.orange)
-                                .multilineTextAlignment(.center)
-                            
-                            Text("Záznam byl načten")
-                                .font(.subheadline)
-                                .foregroundStyle(.secondary)
-                                .multilineTextAlignment(.center)
-                        }
-                        .frame(maxWidth: .infinity)
-                        .padding(.vertical, 8)
-                    }
-                }
-                
                 Section("Datum") {
                     VStack(alignment: .leading, spacing: 4) {
                         DatePicker("Datum", selection: $selectedDate, displayedComponents: .date)
@@ -340,22 +316,15 @@ struct WorkDayEntryView: View {
                             .animation(.easeOut(duration: 0.6), value: animateForm)
                         
                         if hasExistingRecord(for: selectedDate) {
-                            Text("(záznam již existuje)")
-                                .foregroundStyle(.orange)
+                            Text("(Existující záznam)")
+                                .foregroundStyle(.red)
                                 .font(.caption)
                         }
                     }
                     .onChange(of: selectedDate) { _, newDate in
-                        // Zkontrolovat, zda existuje záznam pro vybrané datum
-                        if hasExistingRecord(for: newDate) {
-                            // Načíst existující záznam
-                            loadExistingRecord(for: newDate)
-                            isEditingExistingRecord = true
-                        } else {
-                            // Nový záznam
-                            clearFormForNewRecord()
-                            isEditingExistingRecord = false
-                        }
+                        // Vždy vytvořit nový záznam - ne načítat existující
+                        isEditingExistingRecord = false
+                        clearFormForNewRecord()
                         
                         // Zavřít DatePicker po výběru
                         showingDatePicker = false
@@ -369,7 +338,6 @@ struct WorkDayEntryView: View {
                         }
                     }
                     .pickerStyle(.segmented)
-                    .disabled(isEditingExistingRecord)
                     .onChange(of: selectedDayType) { _, newType in
                         // Vymazat všechna pole při výběru dovolené nebo lékaře
                         if newType == .vacation || newType == .sick {
@@ -392,7 +360,6 @@ struct WorkDayEntryView: View {
                                 Spacer()
                                 TextField("Zadejte jméno zákazníka", text: $customerName)
                                     .multilineTextAlignment(.trailing)
-                                    .disabled(isEditingExistingRecord)
                                     .focused($focusedField, equals: .customerName)
                                     .onSubmit {
                                         // Enter na klávesnici - vybrat prvního zákazníka
@@ -401,12 +368,14 @@ struct WorkDayEntryView: View {
                                         }
                                     }
                                     .onChange(of: customerName) { _, newValue in
-                                        // Pouze pokud uživatel skutečně píše (ne automatické doplňování)
+                                        // Pouze pokud uživatel skutečně píše (ne automatické doplňování) a pole není disabled
                                         if !isSelectingSuggestion {
                                             showingCustomerSuggestions = !newValue.isEmpty && !filteredCustomers.isEmpty
+                                        } else {
+                                            showingCustomerSuggestions = false
                                         }
                                         // Resetovat flag s malým zpožděním
-                                        DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
+                                        DispatchQueue.main.asyncAfter(deadline: .now() + 0.2) {
                                             isSelectingSuggestion = false
                                         }
                                     }
@@ -483,7 +452,6 @@ struct WorkDayEntryView: View {
                             TextField("0", text: $kilometers)
                                 .keyboardType(.numberPad)
                                 .multilineTextAlignment(.trailing)
-                                .disabled(isEditingExistingRecord)
                                 .focused($focusedField, equals: .kilometers)
                         }
                         
@@ -496,10 +464,9 @@ struct WorkDayEntryView: View {
                                     .autocorrectionDisabled()
                                     .textInputAutocapitalization(.never)
                                     .autocapitalization(.none)
-                                    .disabled(isEditingExistingRecord)
                                     .focused($focusedField, equals: .city)
                                     .onChange(of: city) { _, newValue in
-                                        // Show suggestions only when typing, not when selecting
+                                        // Show suggestions only when typing, not when selecting, and field is not disabled
                                         if !isSelectingSuggestion && !newValue.isEmpty && !filteredCities.isEmpty {
                                             showingCitySuggestions = true
                                         } else if newValue.isEmpty {
@@ -552,27 +519,24 @@ struct WorkDayEntryView: View {
                     Section("Poznámky") {
                         TextField("Zadejte poznámky", text: $notes, axis: .vertical)
                             .lineLimit(3...6)
-                            .disabled(isEditingExistingRecord)
                             .focused($focusedField, equals: .notes)
                     }
                 }
                 
-                // Tlačítko se nezobrazuje při editaci existujícího záznamu
-                if !isEditingExistingRecord {
-                    Section {
-                        Button(action: {
-                            saveWorkDay()
-                        }) {
-                            Text("Uložit výkaz")
-                                .frame(maxWidth: .infinity)
-                                .padding(.vertical, 12)
-                                .background(.blue)
-                                .foregroundStyle(.white)
-                                .clipShape(RoundedRectangle(cornerRadius: 8))
-                                .contentShape(Rectangle())
-                        }
-                        .buttonStyle(PlainButtonStyle())
+                // Tlačítko pro uložení výkazu
+                Section {
+                    Button(action: {
+                        saveWorkDay()
+                    }) {
+                        Text("Uložit výkaz")
+                            .frame(maxWidth: .infinity)
+                            .padding(.vertical, 12)
+                            .background(.blue)
+                            .foregroundStyle(.white)
+                            .clipShape(RoundedRectangle(cornerRadius: 8))
+                            .contentShape(Rectangle())
                     }
+                    .buttonStyle(PlainButtonStyle())
                 }
                 }
                 .padding(.top, 8)
@@ -616,7 +580,7 @@ struct WorkDayEntryView: View {
                 }
                 .buttonStyle(PlainButtonStyle())
             } message: {
-                Text(isEditingExistingRecord ? "Výkaz byl úspěšně aktualizován." : "Výkaz byl úspěšně uložen.")
+                Text("Výkaz byl úspěšně uložen.")
             }
             .alert("Chyba validace", isPresented: $showingValidationAlert) {
                 Button(action: { }) {
@@ -630,6 +594,8 @@ struct WorkDayEntryView: View {
                 Text(validationErrors.joined(separator: "\n"))
             }
             .onAppear {
+                // Vždy vytvořit nový záznam
+                
                 withAnimation(.easeOut(duration: 0.8)) {
                     animateForm = true
                 }
@@ -639,16 +605,6 @@ struct WorkDayEntryView: View {
     
     private func saveWorkDay() {
         validationErrors = []
-        
-        // Validation - check if selected date is a work day
-        if !isSelectable(selectedDate) {
-            validationErrors.append("Nelze vytvořit záznam pro víkend nebo svátek")
-        }
-        
-        // Validation - check if record already exists for this date (only for new records)
-        if hasExistingRecord(for: selectedDate) && !isEditingExistingRecord {
-            validationErrors.append("Již máte záznam pro tento den")
-        }
         
         // Validation - all fields except notes are required only for work days
         if selectedDayType == .work {
@@ -674,88 +630,28 @@ struct WorkDayEntryView: View {
             return
         }
         
-        if isEditingExistingRecord {
-            // Aktualizovat existující záznam
-            let calendar = Calendar.current
-            if let report = viewModel.monthlyReports.first(where: { report in
-                calendar.isDate(report.month, equalTo: selectedDate, toGranularity: .month)
-            }) {
-                if let existingWorkDay = report.workDays.first(where: { workDay in
-                    calendar.isDate(workDay.date, inSameDayAs: selectedDate)
-                }) {
-                    var updatedWorkDay = existingWorkDay
-                    updatedWorkDay.customerName = customerName
-                    updatedWorkDay.drivingHours = drivingHours.toDouble() ?? 0.0
-                    updatedWorkDay.workingHours = workingHours.toDouble() ?? 0.0
-                    updatedWorkDay.kilometers = kilometers.toDouble() ?? 0.0
-                    updatedWorkDay.city = city
-                    updatedWorkDay.notes = notes
-                    updatedWorkDay.dayType = selectedDayType
-                    
-                    // Najít nebo vytvořit zákazníka
-                    if !customerName.isEmpty {
-                        _ = findOrCreateCustomer()
-                    }
-                    
-                    viewModel.updateWorkDay(updatedWorkDay, in: report)
-                    showingSuccessAlert = true
-                }
-            }
-        } else {
-            // Najít nebo vytvořit zákazníka
-            if !customerName.isEmpty {
-                _ = findOrCreateCustomer()
-            }
-            
-            // Vytvořit nový záznam
-            let workDay = WorkDay(
-                date: selectedDate,
-                customerName: customerName,
-                drivingHours: drivingHours.toDouble() ?? 0.0,
-                workingHours: workingHours.toDouble() ?? 0.0,
-                kilometers: kilometers.toDouble() ?? 0.0,
-                city: city,
-                notes: notes,
-                isCompleted: true,
-                dayType: selectedDayType
-            )
-            
-            viewModel.addWorkDay(workDay)
-            showingSuccessAlert = true
+        // Najít nebo vytvořit zákazníka
+        if !customerName.isEmpty {
+            _ = findOrCreateCustomer()
         }
+        
+        // Vytvořit nový záznam
+        let workDay = WorkDay(
+            date: selectedDate,
+            customerName: customerName,
+            drivingHours: drivingHours.toDouble() ?? 0.0,
+            workingHours: workingHours.toDouble() ?? 0.0,
+            kilometers: kilometers.toDouble() ?? 0.0,
+            city: city,
+            notes: notes,
+            isCompleted: true,
+            dayType: selectedDayType
+        )
+        
+        viewModel.addWorkDay(workDay)
+        showingSuccessAlert = true
     }
     
-    private func loadExistingRecord(for date: Date) {
-        let calendar = Calendar.current
-        
-        // Použít stejnou logiku jako ve StatisticsView - filtrovat prázdné měsíce
-        let baseReports = viewModel.monthlyReports.filter { !$0.workDays.isEmpty }
-        
-        if let report = baseReports.first(where: { report in
-            calendar.isDate(report.month, equalTo: date, toGranularity: .month)
-        }) {
-            if let workDay = report.workDays.first(where: { workDay in
-                calendar.isDate(workDay.date, inSameDayAs: date)
-            }) {
-                // Načíst data do formuláře
-                customerName = workDay.customerName
-                drivingHours = String(format: "%.1f", workDay.drivingHours)
-                workingHours = String(format: "%.1f", workDay.workingHours)
-                kilometers = String(format: "%.0f", workDay.kilometers)
-                city = workDay.city
-                notes = workDay.notes
-                selectedDayType = workDay.dayType
-                
-                // Aktualizovat time picker hodnoty
-                updateTimePickerValues()
-                
-            } else {
-                // WorkDay nebyl nalezen v reportu
-            }
-        } else {
-            // Report nebyl nalezen pro měsíc
-        }
-    }
     
     private func clearFormForNewRecord() {
         customerName = ""
@@ -803,7 +699,6 @@ struct WorkDayEntryView: View {
         city = ""
         notes = ""
         selectedDate = Date()
-        isEditingExistingRecord = false
         selectedDayType = .work
         updateTimePickerValues()
         // Navigate to home tab after clearing form

@@ -7,6 +7,29 @@
 
 import SwiftUI
 
+// MARK: - Day Group Structure
+struct DayGroup: Identifiable {
+    let id = UUID()
+    let date: Date
+    let workDays: [WorkDay]
+}
+
+// MARK: - Czech Month Names Extension
+extension Date {
+    func czechMonthYear() -> String {
+        let calendar = Calendar.current
+        let month = calendar.component(.month, from: self)
+        let year = calendar.component(.year, from: self)
+        
+        let monthNames = [
+            "leden", "únor", "březen", "duben", "květen", "červen",
+            "červenec", "srpen", "září", "říjen", "listopad", "prosinec"
+        ]
+        
+        return "\(monthNames[month - 1]) \(year)"
+    }
+}
+
 // MARK: - History View
 struct HistoryView: View {
     @ObservedObject var viewModel: MechanicViewModel
@@ -117,7 +140,7 @@ struct MonthlyReportRow: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
             HStack {
-                Text(report.month.formatted(.dateTime.month(.wide).year()))
+                Text(report.month.czechMonthYear().capitalized)
                     .font(.headline)
                     .fontWeight(.semibold)
                 
@@ -226,6 +249,20 @@ struct MonthDetailView: View, Identifiable {
         return nil
     }
     
+    // Seskupte výkazy podle data
+    var groupedWorkDays: [DayGroup] {
+        guard let report = report else { return [] }
+        
+        let calendar = Calendar.current
+        let grouped = Dictionary(grouping: report.workDays) { workDay in
+            calendar.startOfDay(for: workDay.date)
+        }
+        
+        return grouped.map { date, workDays in
+            DayGroup(date: date, workDays: workDays.sorted { $0.createdAt < $1.createdAt })
+        }.sorted { $0.date < $1.date }
+    }
+    
     var body: some View {
         List {
                 if let report = report {
@@ -257,15 +294,38 @@ struct MonthDetailView: View, Identifiable {
                     
                     if !report.workDays.isEmpty {
                         Section("Pracovní dny (\(report.workDays.count))") {
-                            ForEach(report.workDays.sorted { $0.date < $1.date }, id: \.id) { workDay in
-                                WorkDayDetailRow(workDay: workDay, onEdit: {
-                                    editingWorkDay = workDay
-                                })
-                                .swipeActions(edge: .trailing, allowsFullSwipe: false) {
-                                    Button(role: .destructive) {
-                                        viewModel.deleteWorkDay(workDay, from: report)
-                                    } label: {
-                                        Label("Smazat", systemImage: "trash")
+                            ForEach(groupedWorkDays, id: \.date) { dayGroup in
+                                VStack(alignment: .leading, spacing: 8) {
+                                    // Header pro den
+                                    HStack {
+                                        Text(dayGroup.date.formatted(.dateTime.day().month().year()))
+                                            .font(.headline)
+                                            .fontWeight(.semibold)
+                                            .foregroundStyle(.primary)
+                                        
+                                        Spacer()
+                                        
+                                        Text("\(dayGroup.workDays.count) \(dayGroup.workDays.count == 1 ? "záznam" : "záznamů")")
+                                            .font(.caption)
+                                            .foregroundStyle(.secondary)
+                                    }
+                                    .padding(.horizontal, 16)
+                                    .padding(.vertical, 8)
+                                    .background(Color(.systemGray6))
+                                    .clipShape(RoundedRectangle(cornerRadius: 8))
+                                    
+                                    // Výkazy pro tento den
+                                    ForEach(dayGroup.workDays, id: \.id) { workDay in
+                                        WorkDayDetailRow(workDay: workDay, onEdit: {
+                                            editingWorkDay = workDay
+                                        })
+                                        .swipeActions(edge: .trailing, allowsFullSwipe: false) {
+                                            Button(role: .destructive) {
+                                                viewModel.deleteWorkDay(workDay, from: report)
+                                            } label: {
+                                                Label("Smazat", systemImage: "trash")
+                                            }
+                                        }
                                     }
                                 }
                             }
@@ -324,7 +384,7 @@ struct MonthDetailView: View, Identifiable {
                     }
                 }
             }
-            .navigationTitle(month.formatted(.dateTime.month(.wide).year()))
+            .navigationTitle(month.czechMonthYear().capitalized)
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .navigationBarTrailing) {
@@ -774,29 +834,10 @@ struct EditWorkDaySheet: View {
             errors.append("Nelze vytvořit záznam pro víkend nebo svátek")
         }
         
-        // Validation - check if record already exists for this date (excluding current)
-        if hasExistingRecord(for: workDay.date, excluding: workDay) {
-            errors.append("Již máte záznam pro tento den")
-        }
-        
         validationErrors = errors
         return errors.isEmpty
     }
     
-    // Kontrola, zda již existuje záznam pro dané datum (kromě aktuálního)
-    private func hasExistingRecord(for date: Date, excluding currentWorkDay: WorkDay) -> Bool {
-        let calendar = Calendar.current
-        return viewModel.monthlyReports.contains { report in
-            report.workDays.contains { workDay in
-                calendar.isDate(workDay.date, inSameDayAs: date) && workDay.id != currentWorkDay.id
-            }
-        }
-    }
-    
-    // Kontrola, zda je datum dostupné pro úpravu
-    private func isAvailableForEdit(_ date: Date) -> Bool {
-        return isWorkDay(date) && !isHoliday(date) && !hasExistingRecord(for: date, excluding: workDay)
-    }
     
     // Kontrola, zda je datum pracovní den (pondělí-pátek)
     private func isWorkDay(_ date: Date) -> Bool {
