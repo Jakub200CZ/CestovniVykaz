@@ -121,7 +121,7 @@ struct MonthlyReportRow: View {
         case 2...4:
             countText = "\(count) dny"
         default:
-            countText = "\(count) dnů"
+            countText = "\(count) dní"
         }
         
         let totalText: String
@@ -131,7 +131,7 @@ struct MonthlyReportRow: View {
         case 2...4:
             totalText = "\(total) dny"
         default:
-            totalText = "\(total) dnů"
+            totalText = "\(total) dní"
         }
         
         return "\(countText)/\(totalText)"
@@ -158,8 +158,8 @@ struct MonthlyReportRow: View {
                     .foregroundStyle(.secondary)
             }
             
-            // Dny podle typu
-            if report.vacationDays > 0 || report.sickDays > 0 {
+            // Dny podle typu – zobrazit vždy, když má měsíc alespoň jeden záznam (aktualizuje se při přidání/úpravě/smazání)
+            if report.workingDays > 0 || report.vacationDays > 0 || report.sickDays > 0 {
                 HStack(spacing: 16) {
                     if report.workingDays > 0 {
                         HStack(spacing: 4) {
@@ -263,6 +263,18 @@ struct MonthDetailView: View, Identifiable {
         }.sorted { $0.date < $1.date }
     }
     
+    // Správné skloňování "dny" podle českého jazyka
+    private func formatDaysCount(_ count: Int) -> String {
+        switch count {
+        case 1:
+            return "1 den"
+        case 2...4:
+            return "\(count) dny"
+        default:
+            return "\(count) dní"
+        }
+    }
+    
     var body: some View {
         List {
                 if let report = report {
@@ -273,15 +285,15 @@ struct MonthDetailView: View, Identifiable {
                         DetailRow(title: "Celkem hodin", value: "\(report.totalHours.formattedTime(useTimePicker: useTimePicker)) h")
                         DetailRow(title: "Počet záznamů", value: "\(report.workDays.count)")
                         
-                        // Dny podle typu
+                        // Dny podle typuf
                         if report.workingDays > 0 {
-                            DetailRow(title: "Pracovních dnů", value: "\(report.workingDays)")
+                            DetailRow(title: "Odpracovaných dní", value: formatDaysCount(report.workingDays))
                         }
                         if report.vacationDays > 0 {
-                            DetailRow(title: "Dovolená", value: "\(report.vacationDays) \("Dny")")
+                            DetailRow(title: "Dovolená", value: formatDaysCount(report.vacationDays))
                         }
                         if report.sickDays > 0 {
-                            DetailRow(title: "Nemoc / Lékař", value: "\(report.sickDays) dny")
+                            DetailRow(title: "Nemoc / Lékař", value: formatDaysCount(report.sickDays))
                         }
                     }
                     
@@ -293,7 +305,7 @@ struct MonthDetailView: View, Identifiable {
                     // }
                     
                     if !report.workDays.isEmpty {
-                        Section("Pracovní dny (\(report.workDays.count))") {
+                        Section("Záznamy (\(report.workDays.count))") {
                             ForEach(groupedWorkDays, id: \.date) { dayGroup in
                                 VStack(alignment: .leading, spacing: 8) {
                                     // Header pro den
@@ -305,7 +317,7 @@ struct MonthDetailView: View, Identifiable {
                                         
                                         Spacer()
                                         
-                                        Text("\(dayGroup.workDays.count) \(dayGroup.workDays.count == 1 ? "záznam" : "záznamů")")
+                                        Text("\(dayGroup.workDays.count) \(dayGroup.workDays.count == 1 ? "záznam" : "záznamy")")
                                             .font(.caption)
                                             .foregroundStyle(.secondary)
                                     }
@@ -736,21 +748,8 @@ struct EditWorkDaySheet: View {
                 VStack(alignment: .leading, spacing: 4) {
                     DatePicker("Datum", selection: $workDay.date, displayedComponents: .date)
                     
-                    if !isWorkDay(workDay.date) || isHoliday(workDay.date) {
-                        Text("(víkend/svátek)")
-                            .foregroundStyle(.red)
-                            .font(.caption)
-                    }
                 }
                 
-                Section("Typ dne") {
-                    Picker("Typ dne", selection: $workDay.dayType) {
-                        ForEach(DayType.allCases, id: \.self) { dayType in
-                            Text(dayType.displayName).tag(dayType)
-                        }
-                    }
-                    .pickerStyle(.segmented)
-                }
                 TimeInputField(
                     title: "Ujeté hodiny",
                     textValue: $drivingHoursText,
@@ -788,8 +787,10 @@ struct EditWorkDaySheet: View {
                     TextField("Zadejte město", text: $workDay.city)
                         .multilineTextAlignment(.trailing)
                 }
-                Section("Poznámka") {
-                    TextField("Poznámka", text: $workDay.notes)
+                Section("Poznámky") {
+                    TextField("Zadejte poznámky", text: $workDay.notes, axis: .vertical)
+                        .lineLimit(3...6)
+                        .focused($focusedField, equals: .notes)
                 }
                 
                 // Tlačítko pro uložení změn
@@ -876,10 +877,7 @@ struct EditWorkDaySheet: View {
             errors.append("Kilometry nemohou být záporné")
         }
         
-        // Validation - check if selected date is a work day
-        if !isWorkDay(workDay.date) || isHoliday(workDay.date) {
-            errors.append("Nelze vytvořit záznam pro víkend nebo svátek")
-        }
+        // Validation pro víkendy a svátky odstraněna - umožňuje změnu data na jakýkoliv den
         
         validationErrors = errors
         return errors.isEmpty

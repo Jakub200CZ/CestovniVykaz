@@ -67,34 +67,8 @@ class NotificationManager: ObservableObject {
         content.sound = .default
         content.badge = nil
         
-        // Nastavit čas na zadaný čas každý den (pouze pracovní dny)
-        var dateComponents = DateComponents()
-        dateComponents.hour = hour
-        dateComponents.minute = minute
-        dateComponents.weekday = 2 // Pondělí
-        dateComponents.weekdayOrdinal = 1 // První pondělí v týdnu
-        
-        let trigger = UNCalendarNotificationTrigger(
-            dateMatching: dateComponents,
-            repeats: true
-        )
-        
-        let request = UNNotificationRequest(
-            identifier: "dailyReminder",
-            content: content,
-            trigger: trigger
-        )
-        
-        UNUserNotificationCenter.current().add(request) { error in
-            if let error = error {
-                print("Error scheduling notification: \(error)")
-            } else {
-                print("Daily reminder scheduled for \(hour):\(String(format: "%02d", minute)) (weekdays only)")
-            }
-        }
-        
-        // Přidat notifikace pro všechny pracovní dny (úterý-pátek)
-        for weekday in 3...6 { // 3 = úterý, 4 = středa, 5 = čtvrtek, 6 = pátek
+        // Notifikace jen ve všední dny (pondělí–pátek): weekday 2 = pondělí … 6 = pátek
+        for weekday in 2...6 {
             var weekdayComponents = DateComponents()
             weekdayComponents.hour = hour
             weekdayComponents.minute = minute
