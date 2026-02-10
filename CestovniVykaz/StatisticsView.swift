@@ -7,283 +7,522 @@
 
 import SwiftUI
 
+// MARK: - Helpers pro měsíční grafy
+private let monthNamesShort = ["Led", "Úno", "Bře", "Dub", "Kvě", "Čvn", "Čvc", "Srp", "Zář", "Říj", "Lis", "Pro"]
+private let monthNamesLong = ["leden", "únor", "březen", "duben", "květen", "červen", "červenec", "srpen", "září", "říjen", "listopad", "prosinec"]
+
+private func monthLabelShort(_ date: Date) -> String {
+    let calendar = Calendar.current
+    let month = calendar.component(.month, from: date)
+    let year = calendar.component(.year, from: date)
+    return "\(monthNamesShort[month - 1]) \(String(year).suffix(2))"
+}
+
+private func monthLabelLong(_ date: Date) -> String {
+    let calendar = Calendar.current
+    let month = calendar.component(.month, from: date)
+    let year = calendar.component(.year, from: date)
+    return "\(monthNamesLong[month - 1]) \(year)"
+}
+
+// Pomocné tvary pro spojnicový graf
+private struct SpojnicovyGrafVyplnBody: Shape {
+    let points: [CGPoint]
+    let bottomY: CGFloat
+    func path(in rect: CGRect) -> Path {
+        var p = Path()
+        guard let first = points.first, let last = points.last else { return p }
+        p.move(to: CGPoint(x: first.x, y: bottomY))
+        for pt in points { p.addLine(to: pt) }
+        p.addLine(to: CGPoint(x: last.x, y: bottomY))
+        p.closeSubpath()
+        return p
+    }
+}
+
+private struct SpojnicovyGrafCaraBody: Shape {
+    let points: [CGPoint]
+    func path(in rect: CGRect) -> Path {
+        var p = Path()
+        guard let first = points.first else { return p }
+        p.move(to: first)
+        for i in 1..<points.count { p.addLine(to: points[i]) }
+        return p
+    }
+}
+
+// MARK: - Spojnicový graf se spodní výplní (posledních 6 měsíců)
+struct ClickableMonthBarChart: View {
+    let title: String
+    let icon: String
+    let color: Color
+    let data: [(label: String, value: Double, monthDate: Date)]
+    let valueFormat: (Double) -> String
+    var displayTextForSelected: ((Int) -> String)?
+    /// Vlastní text pro průměr (např. u paliva "X Kč, Y l"). Když nil, použije se valueFormat(průměr).
+    var averageDisplayText: String?
+    @Binding var selectedIndex: Int?
+    var chartHeight: CGFloat = 120
+    private let lineWidth: CGFloat = 2.5
+    private let pointRadius: CGFloat = 6
+
+    /// Průměr hodnot v datech
+    private var averageValue: Double {
+        guard !data.isEmpty else { return 0 }
+        return data.map(\.value).reduce(0, +) / Double(data.count)
+    }
+
+    /// Text průměru pro zobrazení
+    private var averageLabel: String {
+        averageDisplayText ?? valueFormat(averageValue)
+    }
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: DesignSystem.Spacing.md) {
+            HStack(spacing: DesignSystem.Spacing.sm) {
+                Image(systemName: icon)
+                    .font(.system(size: 16, weight: .semibold))
+                    .foregroundStyle(color)
+                Text(title)
+                    .font(DesignSystem.Typography.headline)
+                    .foregroundStyle(DesignSystem.Colors.textPrimary)
+            }
+
+            let maxVal = max(data.map(\.value).max() ?? 1, 1)
+            GeometryReader { geo in
+                let w = geo.size.width
+                let h = geo.size.height
+                let count = data.count
+                let stepX = count > 1 ? w / CGFloat(count - 1) : w
+                let paddingTop: CGFloat = 8
+                let paddingBottom: CGFloat = 4
+                let chartH = h - paddingTop - paddingBottom
+                let points: [CGPoint] = (0..<count).map { i in
+                    let item = data[i]
+                    let x = CGFloat(i) * stepX
+                    let ratio = maxVal > 0 ? (item.value / maxVal) : 0
+                    let y = paddingTop + chartH * (1 - ratio)
+                    return CGPoint(x: x, y: y)
+                }
+                let bottomY = paddingTop + chartH
+                let avgRatio = maxVal > 0 ? (averageValue / maxVal) : 0
+                let averageY = paddingTop + chartH * (1 - avgRatio)
+
+                ZStack(alignment: .topLeading) {
+                    if count > 0 {
+                        // 1) Výplň pod čárou (spodní výplň)
+                        SpojnicovyGrafVyplnBody(points: points, bottomY: bottomY)
+                            .fill(
+                                LinearGradient(
+                                    colors: [color.opacity(0.35), color.opacity(0.08)],
+                                    startPoint: .top,
+                                    endPoint: .bottom
+                                )
+                            )
+
+                        // 2) Horizontální čára průměru (čerchovaná)
+                        Path { p in
+                            p.move(to: CGPoint(x: 0, y: averageY))
+                            p.addLine(to: CGPoint(x: w, y: averageY))
+                        }
+                        .stroke(
+                            color.opacity(0.8),
+                            style: StrokeStyle(lineWidth: 1.5, dash: [6, 4])
+                        )
+
+                        // 3) Spojnicová čára
+                        SpojnicovyGrafCaraBody(points: points)
+                            .stroke(color, style: StrokeStyle(lineWidth: lineWidth, lineCap: .round, lineJoin: .round))
+
+                        // 4) Body + tlačítka
+                        ForEach(Array(points.enumerated()), id: \.offset) { index, p in
+                            let isSelected = selectedIndex == index
+                            Button {
+                                withAnimation(DesignSystem.Animation.spring) {
+                                    selectedIndex = selectedIndex == index ? nil : index
+                                }
+                            } label: {
+                                Circle()
+                                    .fill(color)
+                                    .frame(width: pointRadius * 2, height: pointRadius * 2)
+                                    .overlay(Circle().stroke(DesignSystem.Colors.cardBackground, lineWidth: 2))
+                                    .overlay(
+                                        Circle()
+                                            .stroke(isSelected ? color : .clear, lineWidth: 2.5)
+                                            .scaleEffect(1.6)
+                                    )
+                            }
+                            .buttonStyle(.plain)
+                            .position(x: p.x, y: p.y)
+                        }
+
+                        // 5) Text průměru vpravo u čáry
+                        Text("Průměr: \(averageLabel)")
+                            .font(.system(size: 10, weight: .semibold))
+                            .foregroundStyle(color.opacity(0.9))
+                            .padding(.horizontal, 6)
+                            .padding(.vertical, 3)
+                            .background(
+                                RoundedRectangle(cornerRadius: 4)
+                                    .fill(DesignSystem.Colors.cardBackground.opacity(0.95))
+                            )
+                            .position(x: max(60, w - 55), y: averageY)
+                    }
+                }
+                .frame(width: w, height: h)
+            }
+            .frame(height: chartHeight)
+
+            HStack(alignment: .center, spacing: 8) {
+                ForEach(Array(data.enumerated()), id: \.offset) { index, item in
+                    Button {
+                        withAnimation(DesignSystem.Animation.spring) {
+                            selectedIndex = selectedIndex == index ? nil : index
+                        }
+                    } label: {
+                        Text(item.label)
+                            .font(.system(size: 10, weight: .medium))
+                            .foregroundStyle(selectedIndex == index ? color : DesignSystem.Colors.textSecondary)
+                            .frame(maxWidth: .infinity)
+                    }
+                    .buttonStyle(.plain)
+                }
+            }
+
+            if let idx = selectedIndex, idx >= 0, idx < data.count {
+                let item = data[idx]
+                let text = displayTextForSelected?(idx) ?? valueFormat(item.value)
+                Text("\(monthLabelLong(item.monthDate)): \(text)")
+                    .font(DesignSystem.Typography.subheadline)
+                    .fontWeight(.semibold)
+                    .foregroundStyle(color)
+                    .padding(.top, 4)
+                    .transition(.opacity.combined(with: .move(edge: .top)))
+            }
+        }
+        .padding(DesignSystem.Spacing.cardPadding)
+        .background(DesignSystem.Colors.cardBackground)
+        .clipShape(RoundedRectangle(cornerRadius: DesignSystem.CornerRadius.card))
+        .shadow(
+            color: DesignSystem.Shadows.card,
+            radius: DesignSystem.Shadows.cardRadius,
+            x: DesignSystem.Shadows.cardOffset.width,
+            y: DesignSystem.Shadows.cardOffset.height
+        )
+    }
+}
+
 // MARK: - Statistics View
 struct StatisticsView: View {
     @ObservedObject var viewModel: MechanicViewModel
     @Binding var selectedTab: Int
     @State private var selectedTimeRange: TimeRange = .allTime
+    /// Sdílený výběr měsíce pro všechny tři grafy (index 0–5)
+    @State private var selectedMonthIndex: Int?
     @AppStorage("useTimePicker") private var useTimePicker = false
-    
+
     enum TimeRange: String, CaseIterable {
         case currentMonth = "Tento"
         case lastMonth = "Minulý"
         case last3Months = "Poslední 3"
         case allTime = "Celkově"
     }
-    
+
     var filteredReports: [MonthlyReport] {
         let calendar = Calendar.current
         let now = Date()
-        
-        let baseReports = viewModel.monthlyReports.filter { !$0.workDays.isEmpty } // Filtrovat prázdné měsíce
-        
+        let baseReports = viewModel.monthlyReports.filter { !$0.workDays.isEmpty }
         switch selectedTimeRange {
         case .currentMonth:
-            return baseReports.filter { report in
-                calendar.isDate(report.month, equalTo: now, toGranularity: .month)
-            }
+            return baseReports.filter { calendar.isDate($0.month, equalTo: now, toGranularity: .month) }
         case .lastMonth:
             if let lastMonth = calendar.date(byAdding: .month, value: -1, to: now) {
-                return baseReports.filter { report in
-                    calendar.isDate(report.month, equalTo: lastMonth, toGranularity: .month)
-                }
+                return baseReports.filter { calendar.isDate($0.month, equalTo: lastMonth, toGranularity: .month) }
             }
             return []
         case .last3Months:
-            return baseReports.filter { report in
-                let monthsAgo = calendar.dateInterval(of: .month, for: now)?.start ?? now
-                let threeMonthsAgo = calendar.date(byAdding: .month, value: -3, to: monthsAgo) ?? now
-                return report.month > threeMonthsAgo && report.month < monthsAgo
-            }
+            let start = calendar.dateInterval(of: .month, for: now)?.start ?? now
+            let threeMonthsAgo = calendar.date(byAdding: .month, value: -3, to: start) ?? now
+            return baseReports.filter { $0.month >= threeMonthsAgo && $0.month <= start }
         case .allTime:
             return baseReports
         }
     }
-    
-    var periodStats: (totalHours: Double, totalKilometers: Double, totalFuelCost: Double) {
+
+    var periodStats: (totalHours: Double, totalKilometers: Double, totalFuelCost: Double, totalLiters: Double) {
         let totalHours = filteredReports.reduce(0) { $0 + $1.totalHours }
         let totalKilometers = filteredReports.reduce(0) { $0 + $1.totalKilometers }
-        
-        // Calculate fuel costs for the selected period
         let calendar = Calendar.current
         let now = Date()
         let filteredFuelEntries: [FuelEntry]
-        
         switch selectedTimeRange {
         case .currentMonth:
-            filteredFuelEntries = viewModel.fuelEntries.filter { entry in
-                calendar.isDate(entry.date, equalTo: now, toGranularity: .month)
-            }
+            filteredFuelEntries = viewModel.fuelEntries.filter { calendar.isDate($0.date, equalTo: now, toGranularity: .month) }
         case .lastMonth:
             if let lastMonth = calendar.date(byAdding: .month, value: -1, to: now) {
-                filteredFuelEntries = viewModel.fuelEntries.filter { entry in
-                    calendar.isDate(entry.date, equalTo: lastMonth, toGranularity: .month)
-                }
-            } else {
-                filteredFuelEntries = []
-            }
+                filteredFuelEntries = viewModel.fuelEntries.filter { calendar.isDate($0.date, equalTo: lastMonth, toGranularity: .month) }
+            } else { filteredFuelEntries = [] }
         case .last3Months:
-            let monthsAgo = calendar.dateInterval(of: .month, for: now)?.start ?? now
-            let threeMonthsAgo = calendar.date(byAdding: .month, value: -3, to: monthsAgo) ?? now
-            filteredFuelEntries = viewModel.fuelEntries.filter { entry in
-                entry.date > threeMonthsAgo && entry.date < monthsAgo
-            }
+            let start = calendar.dateInterval(of: .month, for: now)?.start ?? now
+            let threeMonthsAgo = calendar.date(byAdding: .month, value: -3, to: start) ?? now
+            filteredFuelEntries = viewModel.fuelEntries.filter { $0.date >= threeMonthsAgo && $0.date <= now }
         case .allTime:
             filteredFuelEntries = viewModel.fuelEntries
         }
-        
         let totalFuelCost = filteredFuelEntries.reduce(0) { $0 + $1.price }
-        
-        return (totalHours, totalKilometers, totalFuelCost)
+        let totalLiters = filteredFuelEntries.reduce(0) { $0 + $1.fuelAmount }
+        return (totalHours, totalKilometers, totalFuelCost, totalLiters)
     }
-    
-    // Formátování kilometrů pro lepší čitelnost
+
+    /// Celkem natankováno za celou dobu (litry)
+    var totalLitersAllTime: Double {
+        viewModel.fuelEntries.reduce(0) { $0 + $1.fuelAmount }
+    }
+
+    /// Posledních 6 měsíců (od nejstaršího)
+    var last6MonthStarts: [Date] {
+        let calendar = Calendar.current
+        let now = Date()
+        let startOfCurrent = calendar.dateInterval(of: .month, for: now)?.start ?? now
+        return (0..<6).reversed().compactMap { calendar.date(byAdding: .month, value: -$0, to: startOfCurrent) }
+    }
+
+    /// Data pro graf hodin: [(zkrácený label, hodiny, datum měsíce)]
+    var last6MonthsHoursData: [(label: String, value: Double, monthDate: Date)] {
+        let calendar = Calendar.current
+        return last6MonthStarts.map { monthStart in
+            let report = viewModel.monthlyReports.first { calendar.isDate($0.month, equalTo: monthStart, toGranularity: .month) }
+            let hours = report?.totalHours ?? 0
+            return (monthLabelShort(monthStart), hours, monthStart)
+        }
+    }
+
+    /// Data pro graf km
+    var last6MonthsKmData: [(label: String, value: Double, monthDate: Date)] {
+        let calendar = Calendar.current
+        return last6MonthStarts.map { monthStart in
+            let report = viewModel.monthlyReports.first { calendar.isDate($0.month, equalTo: monthStart, toGranularity: .month) }
+            let km = report?.totalKilometers ?? 0
+            return (monthLabelShort(monthStart), km, monthStart)
+        }
+    }
+
+    /// Data pro graf paliva (výška sloupce = litry)
+    var last6MonthsFuelLitersData: [(label: String, value: Double, monthDate: Date)] {
+        let calendar = Calendar.current
+        return last6MonthStarts.map { monthStart in
+            let liters = viewModel.fuelEntries
+                .filter { calendar.isDate($0.date, equalTo: monthStart, toGranularity: .month) }
+                .reduce(0) { $0 + $1.fuelAmount }
+            return (monthLabelShort(monthStart), liters, monthStart)
+        }
+    }
+
+    /// Ceny paliva po měsících (stejné pořadí jako last6MonthStarts) pro zobrazení „Kč, l“
+    var last6MonthsFuelPrices: [Double] {
+        let calendar = Calendar.current
+        return last6MonthStarts.map { monthStart in
+            viewModel.fuelEntries
+                .filter { calendar.isDate($0.date, equalTo: monthStart, toGranularity: .month) }
+                .reduce(0) { $0 + $1.price }
+        }
+    }
+
     private func formatKilometers(_ kilometers: Double) -> String {
-        if kilometers >= 1000 {
-            return String(format: "%.1fK", kilometers / 1000)
-        } else {
-            return String(format: "%.0f", kilometers)
-        }
+        if kilometers >= 1000 { return String(format: "%.1fK", kilometers / 1000) }
+        return String(format: "%.0f", kilometers)
     }
-    
-    // Formátování měny pro lepší čitelnost
+
     private func formatCurrency(_ amount: Double) -> String {
-        if amount >= 1000 {
-            return String(format: "%.1fK", amount / 1000)
-        } else {
-            return String(format: "%.0f", amount)
-        }
+        if amount >= 1000 { return String(format: "%.1fK", amount / 1000) }
+        return String(format: "%.0f", amount)
     }
-    
+
     var body: some View {
         ScrollView {
-                VStack(spacing: 20) {
-                    // Period Stats based on selected time range
-                    VStack(spacing: 20) {
-                        Text("Statistiky za \(selectedTimeRange.rawValue.lowercased())")
-                            .font(.system(size: 18, weight: .semibold))
-                            .foregroundStyle(.primary)
-                        
-                        HStack(spacing: DesignSystem.Spacing.sm) {
-                            StatCard(
-                                title: "Celkem hodin",
-                                value: periodStats.totalHours.formattedTime(useTimePicker: useTimePicker),
-                                icon: "clock.fill",
-                                color: DesignSystem.Colors.primary
-                            )
-                            
-                            StatCard(
-                                title: "Celkem km",
-                                value: formatKilometers(periodStats.totalKilometers),
-                                icon: "speedometer",
-                                color: DesignSystem.Colors.secondary
-                            )
-                            
-                            StatCard(
-                                title: "Palivo",
-                                value: "\(formatCurrency(periodStats.totalFuelCost)) Kč",
-                                icon: "fuelpump.fill",
-                                color: DesignSystem.Colors.accent
-                            )
-                        }
+            VStack(spacing: DesignSystem.Spacing.lg) {
+                // Celková statistika za období
+                VStack(spacing: DesignSystem.Spacing.md) {
+                    Text("Statistiky za \(selectedTimeRange.rawValue.lowercased())")
+                        .font(DesignSystem.Typography.headline)
+                        .foregroundStyle(DesignSystem.Colors.textPrimary)
+
+                    HStack(spacing: DesignSystem.Spacing.sm) {
+                        StatCard(
+                            title: "Celkem hodin",
+                            value: periodStats.totalHours.formattedTime(useTimePicker: useTimePicker),
+                            icon: "clock.fill",
+                            color: DesignSystem.Colors.primary
+                        )
+                        StatCard(
+                            title: "Celkem km",
+                            value: formatKilometers(periodStats.totalKilometers),
+                            icon: "speedometer",
+                            color: DesignSystem.Colors.secondary
+                        )
+                        StatCard(
+                            title: "Palivo",
+                            value: "\(formatCurrency(periodStats.totalFuelCost)) Kč",
+                            icon: "fuelpump.fill",
+                            color: DesignSystem.Colors.accent
+                        )
                     }
-                    .cardStyleSecondary()
+
+                    // Celkem natankováno (všechna data)
+                    HStack(spacing: DesignSystem.Spacing.sm) {
+                        Image(systemName: "drop.fill")
+                            .font(.system(size: 16))
+                            .foregroundStyle(DesignSystem.Colors.accent)
+                        Text("Celkem natankováno:")
+                            .font(DesignSystem.Typography.subheadline)
+                            .foregroundStyle(DesignSystem.Colors.textSecondary)
+                        Text(String(format: "%.0f l", totalLitersAllTime))
+                            .font(DesignSystem.Typography.headline)
+                            .foregroundStyle(DesignSystem.Colors.textPrimary)
+                    }
+                    .padding(.vertical, DesignSystem.Spacing.sm)
+                }
+                .cardStyleSecondary()
+                .padding(.horizontal)
+
+                // Výběr období
+                Picker("Časové období", selection: $selectedTimeRange) {
+                    ForEach(TimeRange.allCases, id: \.self) { Text($0.rawValue).tag($0) }
+                }
+                .pickerStyle(.segmented)
+                .padding(.horizontal)
+
+                // Grafy – posledních 6 měsíců
+                VStack(alignment: .leading, spacing: DesignSystem.Spacing.md) {
+                    Text("Posledních 6 měsíců")
+                        .font(DesignSystem.Typography.headline)
+                        .foregroundStyle(DesignSystem.Colors.textPrimary)
+                        .padding(.horizontal, 4)
+
+                    ClickableMonthBarChart(
+                        title: "Hodiny",
+                        icon: "clock.fill",
+                        color: DesignSystem.Colors.primary,
+                        data: last6MonthsHoursData,
+                        valueFormat: { $0.formattedTime(useTimePicker: useTimePicker) + " h" },
+                        selectedIndex: $selectedMonthIndex
+                    )
                     .padding(.horizontal)
-                    
-                    // Time Range Selector
-                    Picker("Časové období", selection: $selectedTimeRange) {
-                        ForEach(TimeRange.allCases, id: \.self) { range in
-                            Text(range.rawValue).tag(range)
-                        }
-                    }
-                    .pickerStyle(.segmented)
+
+                    ClickableMonthBarChart(
+                        title: "Kilometry",
+                        icon: "speedometer",
+                        color: DesignSystem.Colors.secondary,
+                        data: last6MonthsKmData,
+                        valueFormat: { formatKilometers($0) + " km" },
+                        selectedIndex: $selectedMonthIndex
+                    )
                     .padding(.horizontal)
-                    
-                    // Monthly Stats
-                    VStack(spacing: 16) {
-                        Text("Měsíční přehled")
-                            .font(.system(size: 18, weight: .semibold))
-                            .foregroundStyle(.primary)
-                        
-                        if filteredReports.isEmpty {
-                            EmptyState(
-                                icon: "chart.bar",
-                                title: "Žádná data pro vybrané období"
-                            )
-                        } else {
-                            LazyVStack(spacing: 6) {
-                                ForEach(filteredReports.sorted { $0.month > $1.month }, id: \.month) { report in
-                                    MonthlyStatRow(report: report, viewModel: viewModel)
-                                }
-                            }
-                        }
-                    }
-                    .cardStyleSecondary()
+
+                    ClickableMonthBarChart(
+                        title: "Palivo",
+                        icon: "fuelpump.fill",
+                        color: DesignSystem.Colors.accent,
+                        data: last6MonthsFuelLitersData,
+                        valueFormat: { String(format: "%.0f l", $0) },
+                        displayTextForSelected: { idx in
+                            let prices = last6MonthsFuelPrices
+                            let liters = last6MonthsFuelLitersData.map(\.value)
+                            guard idx >= 0, idx < prices.count, idx < liters.count else { return "" }
+                            return "\(formatCurrency(prices[idx])) Kč, \(String(format: "%.0f", liters[idx])) l"
+                        },
+                        averageDisplayText: {
+                            let n = max(last6MonthsFuelPrices.count, 1)
+                            let avgKc = last6MonthsFuelPrices.reduce(0, +) / Double(n)
+                            let avgL = last6MonthsFuelLitersData.map(\.value).reduce(0, +) / Double(n)
+                            return "\(formatCurrency(avgKc)) Kč, \(String(format: "%.0f", avgL)) l"
+                        }(),
+                        selectedIndex: $selectedMonthIndex
+                    )
                     .padding(.horizontal)
                 }
-                .padding(.top, 10)
-                .padding(.bottom)
             }
-            .navigationTitle("Statistiky")
-            .navigationBarTitleDisplayMode(.inline)
+            .padding(.top, DesignSystem.Spacing.sm)
+            .padding(.bottom, DesignSystem.Spacing.xxl)
+        }
+        .navigationTitle("Statistiky")
+        .navigationBarTitleDisplayMode(.inline)
     }
 }
 
-
+// MARK: - Monthly Stat Row (pro případné použití jinde)
 struct MonthlyStatRow: View {
     let report: MonthlyReport
     @ObservedObject var viewModel: MechanicViewModel
     @AppStorage("useTimePicker") private var useTimePicker = false
-    
-    // Správné skloňování "dny" v češtině
+
     private func formatDays(_ count: Int) -> String {
         switch count {
-        case 1:
-            return "1 den"
-        case 2...4:
-            return "\(count) dny"
-        default:
-            return "\(count) dnů"
+        case 1: return "1 den"
+        case 2...4: return "\(count) dny"
+        default: return "\(count) dnů"
         }
     }
-    
-    // Formátování měsíců v češtině
+
     private func formatMonthYear(_ date: Date) -> String {
         let calendar = Calendar.current
         let month = calendar.component(.month, from: date)
         let year = calendar.component(.year, from: date)
-        
-        let monthNames = [
-            "leden", "únor", "březen", "duben", "květen", "červen",
-            "červenec", "srpen", "září", "říjen", "listopad", "prosinec"
-        ]
-        
-        return "\(monthNames[month - 1]) \(year)"
+        return "\(monthNamesLong[month - 1]) \(year)"
     }
-    
-    // Get fuel cost for this month
+
     private var monthlyFuelCost: Double {
         let calendar = Calendar.current
-        return viewModel.fuelEntries.filter { entry in
-            calendar.isDate(entry.date, equalTo: report.month, toGranularity: .month)
-        }.reduce(0) { $0 + $1.price }
+        return viewModel.fuelEntries
+            .filter { calendar.isDate($0.date, equalTo: report.month, toGranularity: .month) }
+            .reduce(0) { $0 + $1.price }
     }
-    
-    // Formátování kilometrů pro lepší čitelnost
+
     private func formatKilometers(_ kilometers: Double) -> String {
-        if kilometers >= 1000 {
-            return String(format: "%.1fK", kilometers / 1000)
-        } else {
-            return String(format: "%.0f", kilometers)
-        }
+        if kilometers >= 1000 { return String(format: "%.1fK", kilometers / 1000) }
+        return String(format: "%.0f", kilometers)
     }
-    
-    // Formátování měny pro lepší čitelnost
+
     private func formatCurrency(_ amount: Double) -> String {
-        if amount >= 1000 {
-            return String(format: "%.1fK", amount / 1000)
-        } else {
-            return String(format: "%.0f", amount)
-        }
+        if amount >= 1000 { return String(format: "%.1fK", amount / 1000) }
+        return String(format: "%.0f", amount)
     }
-    
+
     var body: some View {
         HStack(spacing: 16) {
-            // Month info
             VStack(alignment: .leading, spacing: 2) {
                 Text(formatMonthYear(report.month))
                     .font(.system(size: 15, weight: .semibold))
                     .foregroundStyle(.primary)
-                
                 Text(formatDays(report.workDays.count))
                     .font(.system(size: 12, weight: .medium))
                     .foregroundStyle(.secondary)
             }
             .frame(width: 80, alignment: .leading)
-            
             Spacer()
-            
-            // Stats in a grid layout - 3 columns (removed work days)
             HStack(spacing: 20) {
-                // Hours
                 VStack(alignment: .trailing, spacing: 2) {
                     Text(report.totalHours.formattedTime(useTimePicker: useTimePicker))
                         .font(.system(size: 13, weight: .bold, design: .rounded))
                         .foregroundStyle(.blue)
                         .lineLimit(1)
                         .minimumScaleFactor(0.7)
-                    
                     Text("Hodin")
                         .font(.system(size: 9, weight: .medium))
                         .foregroundStyle(.secondary)
                 }
                 .frame(maxWidth: .infinity)
-                
-                // Kilometers
                 VStack(alignment: .trailing, spacing: 2) {
                     Text(formatKilometers(report.totalKilometers))
                         .font(.system(size: 13, weight: .bold, design: .rounded))
                         .foregroundStyle(.green)
                         .lineLimit(1)
                         .minimumScaleFactor(0.7)
-                    
                     Text("Km")
                         .font(.system(size: 9, weight: .medium))
                         .foregroundStyle(.secondary)
                 }
                 .frame(maxWidth: .infinity)
-                
-                // Fuel cost
                 VStack(alignment: .trailing, spacing: 2) {
                     if monthlyFuelCost > 0 {
                         Text(formatCurrency(monthlyFuelCost))
@@ -291,7 +530,6 @@ struct MonthlyStatRow: View {
                             .foregroundStyle(.orange)
                             .lineLimit(1)
                             .minimumScaleFactor(0.7)
-                        
                         Text("Kč")
                             .font(.system(size: 9, weight: .medium))
                             .foregroundStyle(.secondary)
@@ -300,7 +538,6 @@ struct MonthlyStatRow: View {
                             .font(.system(size: 13, weight: .bold, design: .rounded))
                             .foregroundStyle(.secondary)
                             .lineLimit(1)
-                        
                         Text("Kč")
                             .font(.system(size: 9, weight: .medium))
                             .foregroundStyle(.secondary)
@@ -311,9 +548,6 @@ struct MonthlyStatRow: View {
         }
         .padding(.horizontal, 16)
         .padding(.vertical, 12)
-        .background(
-            RoundedRectangle(cornerRadius: 10)
-                .fill(.regularMaterial)
-        )
+        .background(RoundedRectangle(cornerRadius: 10).fill(.regularMaterial))
     }
-} 
+}

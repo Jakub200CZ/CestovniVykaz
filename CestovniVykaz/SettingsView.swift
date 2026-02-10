@@ -316,6 +316,28 @@ struct SettingsView: View {
 #endif
                 
                 Section("O aplikaci") {
+                    // Vývojář
+                    HStack {
+                        Image(systemName: "person.circle.fill")
+                            .foregroundStyle(.green)
+                            .frame(width: 24)
+                        
+                        VStack(alignment: .leading, spacing: 4) {
+                            Text("Vývojář")
+                                .font(.headline)
+                                .foregroundStyle(.primary)
+                            
+                            Text("Jakub Sedláček")
+                                .font(.subheadline)
+                                .foregroundStyle(.secondary)
+                        }
+                        
+                        Spacer()
+                    }
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .padding(.vertical, 8)
+                    
+                    // Verze aplikace
                     HStack {
                         Image(systemName: "info.circle.fill")
                             .foregroundStyle(.blue)

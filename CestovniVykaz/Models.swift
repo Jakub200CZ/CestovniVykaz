@@ -144,6 +144,39 @@ enum DayType: String, Codable, CaseIterable {
     }
 }
 
+// MARK: - GPS Track Point (pro Live záznam trasy)
+struct TrackPoint: Codable, Identifiable {
+    var id = UUID()
+    var latitude: Double
+    var longitude: Double
+    var timestamp: Date
+    
+    init(latitude: Double, longitude: Double, timestamp: Date = Date()) {
+        self.latitude = latitude
+        self.longitude = longitude
+        self.timestamp = timestamp
+    }
+    
+    enum CodingKeys: String, CodingKey {
+        case latitude, longitude, timestamp
+    }
+    
+    init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        latitude = try c.decode(Double.self, forKey: .latitude)
+        longitude = try c.decode(Double.self, forKey: .longitude)
+        timestamp = try c.decode(Date.self, forKey: .timestamp)
+        id = UUID()
+    }
+    
+    func encode(to encoder: Encoder) throws {
+        var c = encoder.container(keyedBy: CodingKeys.self)
+        try c.encode(latitude, forKey: .latitude)
+        try c.encode(longitude, forKey: .longitude)
+        try c.encode(timestamp, forKey: .timestamp)
+    }
+}
+
 // MARK: - Data Models
 struct WorkDay: Identifiable, Codable {
     var id = UUID()
@@ -157,8 +190,10 @@ struct WorkDay: Identifiable, Codable {
     var isCompleted: Bool
     var dayType: DayType
     var createdAt: Date
+    /// GPS trasa z Live záznamu (jízda)
+    var trackPoints: [TrackPoint]?
     
-    init(date: Date, customerName: String = "", drivingHours: Double = 0.0, workingHours: Double = 0.0, kilometers: Double = 0.0, city: String = "", notes: String = "", isCompleted: Bool = false, dayType: DayType = .work) {
+    init(date: Date, customerName: String = "", drivingHours: Double = 0.0, workingHours: Double = 0.0, kilometers: Double = 0.0, city: String = "", notes: String = "", isCompleted: Bool = false, dayType: DayType = .work, trackPoints: [TrackPoint]? = nil) {
         self.date = date
         self.customerName = customerName
         self.drivingHours = drivingHours
@@ -169,6 +204,7 @@ struct WorkDay: Identifiable, Codable {
         self.isCompleted = isCompleted
         self.dayType = dayType
         self.createdAt = Date()
+        self.trackPoints = trackPoints
     }
     
     // Custom decoder pro kompatibilitu se starými záznamy
@@ -185,6 +221,7 @@ struct WorkDay: Identifiable, Codable {
         notes = try container.decode(String.self, forKey: .notes)
         isCompleted = try container.decode(Bool.self, forKey: .isCompleted)
         createdAt = try container.decode(Date.self, forKey: .createdAt)
+        trackPoints = try container.decodeIfPresent([TrackPoint].self, forKey: .trackPoints)
         
         // Pokus o dekódování dayType, pokud neexistuje, použít .work
         if let dayType = try? container.decode(DayType.self, forKey: .dayType) {

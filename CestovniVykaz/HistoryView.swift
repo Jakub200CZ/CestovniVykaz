@@ -6,6 +6,7 @@
 //
 
 import SwiftUI
+import MapKit
 
 // MARK: - Day Group Structure
 struct DayGroup: Identifiable {
@@ -59,7 +60,7 @@ struct HistoryView: View {
                         .animation(.easeOut(duration: 0.6).delay(Double(index) * 0.1), value: animateList)
                     }
                 }
-                .padding(.top, 10)
+                .padding(.top, 2)
                 
             }
             .navigationTitle("Historie")
@@ -219,6 +220,146 @@ struct StatItem: View {
     }
 }
 
+// MARK: - Kalendář pracovních dnů v měsíci
+struct MonthWorkCalendarView: View {
+    let report: MonthlyReport
+    private var calendar: Calendar {
+        var cal = Calendar.current
+        cal.firstWeekday = 2 // Pondělí první den týdne
+        return cal
+    }
+    
+    private func dayType(for date: Date) -> DayType? {
+        report.workDays.first { calendar.isDate($0.date, inSameDayAs: date) }?.dayType
+    }
+    
+    private var calendarDays: [Date] {
+        guard let monthInterval = calendar.dateInterval(of: .month, for: report.month),
+              let monthFirstWeek = calendar.dateInterval(of: .weekOfYear, for: monthInterval.start),
+              let monthLastWeek = calendar.dateInterval(of: .weekOfYear, for: monthInterval.end - 1) else {
+            return []
+        }
+        var days: [Date] = []
+        var currentDate = monthFirstWeek.start
+        while currentDate < monthLastWeek.end {
+            days.append(currentDate)
+            currentDate = calendar.date(byAdding: .day, value: 1, to: currentDate) ?? currentDate
+        }
+        return days
+    }
+    
+    private let cellSize: CGFloat = 32
+    private let gridSpacing: CGFloat = 4
+    
+    var body: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            LazyVGrid(columns: Array(repeating: GridItem(.fixed(cellSize), spacing: gridSpacing), count: 7), spacing: gridSpacing) {
+                ForEach(["Po", "Út", "St", "Čt", "Pá", "So", "Ne"], id: \.self) { day in
+                    Text(day)
+                        .font(.caption2)
+                        .fontWeight(.medium)
+                        .foregroundStyle(.secondary)
+                        .frame(width: cellSize, height: 20)
+                }
+                
+                ForEach(calendarDays, id: \.self) { date in
+                    WorkCalendarDayView(
+                        date: date,
+                        dayType: dayType(for: date),
+                        isCurrentMonth: calendar.isDate(date, equalTo: report.month, toGranularity: .month),
+                        size: cellSize
+                    )
+                }
+            }
+            .frame(width: 7 * cellSize + 6 * gridSpacing)
+            
+            // Legenda
+            HStack(spacing: 16) {
+                HStack(spacing: 4) {
+                    Circle()
+                        .fill(Color.green)
+                        .frame(width: 8, height: 8)
+                    Text("Práce")
+                        .font(.caption2)
+                        .foregroundStyle(.secondary)
+                }
+                HStack(spacing: 4) {
+                    Circle()
+                        .fill(Color.blue)
+                        .frame(width: 8, height: 8)
+                    Text("Dovolená")
+                        .font(.caption2)
+                        .foregroundStyle(.secondary)
+                }
+                HStack(spacing: 4) {
+                    Circle()
+                        .fill(Color.red)
+                        .frame(width: 8, height: 8)
+                    Text("Nemoc / Lékař")
+                        .font(.caption2)
+                        .foregroundStyle(.secondary)
+                }
+                Spacer()
+            }
+        }
+        .padding(12)
+        .background(Color(.systemGray6))
+        .clipShape(RoundedRectangle(cornerRadius: 12))
+        .frame(height: 262)
+    }
+}
+
+struct WorkCalendarDayView: View {
+    let date: Date
+    let dayType: DayType?
+    let isCurrentMonth: Bool
+    var size: CGFloat = 32
+    private let calendar = Calendar.current
+    
+    private var fillColor: Color? {
+        guard let dayType = dayType else { return nil }
+        switch dayType {
+        case .work: return .green
+        case .vacation: return .blue
+        case .sick: return .red
+        }
+    }
+    
+    private var isWeekend: Bool {
+        let w = calendar.component(.weekday, from: date)
+        return w == 1 || w == 7
+    }
+    
+    var body: some View {
+        ZStack {
+            if let color = fillColor {
+                Circle()
+                    .fill(color.opacity(0.85))
+            } else if isCurrentMonth {
+                Circle()
+                    .stroke(Color(.systemGray4), lineWidth: 1)
+                    .background(Circle().fill(Color(.systemGray6).opacity(0.5)))
+            }
+            
+            Text("\(calendar.component(.day, from: date))")
+                .font(.caption2)
+                .fontWeight(dayType != nil ? .semibold : .regular)
+                .foregroundStyle(foregroundColor)
+        }
+        .frame(width: size, height: size)
+    }
+    
+    private var foregroundColor: Color {
+        if dayType != nil {
+            return .white
+        }
+        if isCurrentMonth {
+            return isWeekend ? .secondary : .primary
+        }
+        return .secondary.opacity(0.7)
+    }
+}
+
 struct MonthDetailView: View, Identifiable {
     @ObservedObject var viewModel: MechanicViewModel
     let month: Date
@@ -297,12 +438,13 @@ struct MonthDetailView: View, Identifiable {
                         }
                     }
                     
-                    
-                    // Kalendářní náhled - dočasně odstraněn kvůli problémům s layoutem
-                    // Section {
-                    //     MonthCalendarView(report: report)
-                    //         .padding(.vertical, 8)
-                    // }
+                    // Kalendář měsíce – přehled pracovních dnů, dovolené a nemoci
+                    Section {
+                        MonthWorkCalendarView(report: report)
+                            .listRowInsets(EdgeInsets(top: 8, leading: 16, bottom: 8, trailing: 16))
+                            .listRowBackground(Color.clear)
+                            .listRowSeparator(.hidden)
+                    }
                     
                     if !report.workDays.isEmpty {
                         Section("Záznamy (\(report.workDays.count))") {
@@ -626,6 +768,19 @@ struct WorkDayDetailRow: View {
                             Spacer()
                         }
                     }
+                    
+                    // Náhled GPS trasy z Live záznamu
+                    if let points = workDay.trackPoints, !points.isEmpty {
+                        VStack(alignment: .leading, spacing: 4) {
+                            Text("Trasa (Live)")
+                                .font(.caption)
+                                .fontWeight(.medium)
+                                .foregroundStyle(.secondary)
+                            WorkDayRouteMapView(trackPoints: points)
+                                .frame(height: 120)
+                                .clipShape(RoundedRectangle(cornerRadius: 8))
+                        }
+                    }
                 }
             }
         }
@@ -671,6 +826,30 @@ struct CompactStatItem: View {
                 .font(.caption)
                 .foregroundStyle(.secondary)
         }
+    }
+}
+
+// MARK: - Náhled mapy trasy u výkazu z Live záznamu
+struct WorkDayRouteMapView: View {
+    let trackPoints: [TrackPoint]
+    
+    private var coordinates: [CLLocationCoordinate2D] {
+        trackPoints.map { CLLocationCoordinate2D(latitude: $0.latitude, longitude: $0.longitude) }
+    }
+    
+    private var mapPosition: MapCameraPosition {
+        guard !coordinates.isEmpty else { return .automatic }
+        let center = coordinates.count == 1 ? coordinates[0] : coordinates[coordinates.count / 2]
+        let span = MKCoordinateSpan(latitudeDelta: 0.05, longitudeDelta: 0.05)
+        return .region(MKCoordinateRegion(center: center, span: span))
+    }
+    
+    var body: some View {
+        Map(position: .constant(mapPosition)) {
+            MapPolyline(coordinates: coordinates)
+                .stroke(.blue, lineWidth: 3)
+        }
+        .mapStyle(.standard)
     }
 }
 

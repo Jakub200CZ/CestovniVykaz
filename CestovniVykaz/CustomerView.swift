@@ -55,7 +55,7 @@ struct CustomerView: View {
                 }
                 .buttonStyle(PlainButtonStyle())
                 .padding(.horizontal)
-                .padding(.top, 8)
+                .padding(.top, 4)
                 
                 // Search bar
                 HStack {
@@ -69,7 +69,7 @@ struct CustomerView: View {
                 .background(.regularMaterial)
                 .clipShape(RoundedRectangle(cornerRadius: 12))
                 .padding(.horizontal)
-                .padding(.top, 8)
+                .padding(.top, 4)
                 
                 // Customer list
                 if filteredCustomers.isEmpty {
@@ -93,7 +93,7 @@ struct CustomerView: View {
                                 .listRowInsets(EdgeInsets(top: 6, leading: 16, bottom: 6, trailing: 16))
                         }
                     }
-                    .padding(.top, 8)
+                    .padding(.top, 4)
                     .listStyle(PlainListStyle())
                     .scrollContentBackground(.hidden)
                 }

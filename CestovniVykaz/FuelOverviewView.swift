@@ -116,7 +116,7 @@ struct FuelOverviewView: View {
                     Spacer(minLength: 20)
                     }
                 }
-                .padding(.top, 8)
+                .padding(.top, 4)
             }
             .navigationTitle("Palivo")
             .navigationBarTitleDisplayMode(.inline)

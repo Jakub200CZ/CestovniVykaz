@@ -21,8 +21,7 @@ struct MechanicTabView: View {
     @State private var animateTabTransition = false
     
     var body: some View {
-        NavigationStack {
-            TabView(selection: $selectedTab) {
+        TabView(selection: $selectedTab) {
                 // 0. Hlavní stránka
                 HomeView(viewModel: viewModel, selectedTab: $selectedTab)
                     .tabItem {
@@ -47,11 +46,11 @@ struct MechanicTabView: View {
                         removal: .move(edge: .trailing).combined(with: .opacity)
                     ))
                 
-                // 2. Historie výkazů
-                HistoryView(viewModel: viewModel, selectedTab: $selectedTab)
+                // 2. Live záznam
+                LiveView(viewModel: viewModel, selectedTab: $selectedTab)
                     .tabItem {
-                        Image(systemName: "clock.fill")
-                        Text("Historie")
+                        Image(systemName: "location.fill")
+                        Text("Live")
                     }
                     .tag(2)
                     .transition(.asymmetric(
@@ -59,11 +58,11 @@ struct MechanicTabView: View {
                         removal: .move(edge: .trailing).combined(with: .opacity)
                     ))
                 
-                // 3. Tankování
-                FuelOverviewView(viewModel: viewModel, selectedTab: $selectedTab)
+                // 3. Historie výkazů
+                HistoryView(viewModel: viewModel, selectedTab: $selectedTab)
                     .tabItem {
-                        Image(systemName: "fuelpump.fill")
-                        Text("Palivo")
+                        Image(systemName: "clock.fill")
+                        Text("Historie")
                     }
                     .tag(3)
                     .transition(.asymmetric(
@@ -71,11 +70,11 @@ struct MechanicTabView: View {
                         removal: .move(edge: .trailing).combined(with: .opacity)
                     ))
                 
-                // 4. Zákazníci
-                CustomerView(viewModel: viewModel, selectedTab: $selectedTab)
+                // 4. Více (Palivo, Zákazníci)
+                MoreView(viewModel: viewModel, selectedTab: $selectedTab)
                     .tabItem {
-                        Image(systemName: "person.2.fill")
-                        Text("Zákazníci")
+                        Image(systemName: "ellipsis.circle.fill")
+                        Text("Více")
                     }
                     .tag(4)
                     .transition(.asymmetric(
@@ -83,10 +82,9 @@ struct MechanicTabView: View {
                         removal: .move(edge: .trailing).combined(with: .opacity)
                     ))
             }
-            .accentColor(.blue)
-            .preferredColorScheme(.none) // Automaticky podle systému
-            .animation(.easeInOut(duration: 0.3), value: selectedTab)
-        }
+        .accentColor(.blue)
+        .preferredColorScheme(.none) // Automaticky podle systému
+        .animation(.easeInOut(duration: 0.3), value: selectedTab)
     }
 }
 
@@ -406,7 +404,7 @@ struct WorkDayEntryView: View {
                                         .buttonStyle(PlainButtonStyle())
                                     }
                                 }
-                                .padding(.top, 8)
+                                .padding(.top, 4)
                             }
                         }
                         .opacity(animateForm ? 1.0 : 0.0)
@@ -536,7 +534,7 @@ struct WorkDayEntryView: View {
                     .buttonStyle(PlainButtonStyle())
                 }
                 }
-                .padding(.top, 8)
+                .padding(.top, 4)
                 .onTapGesture {
                     // Zavřít klávesnici při kliknutí mimo textové pole
                     focusedField = nil

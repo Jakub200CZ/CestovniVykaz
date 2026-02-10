@@ -44,9 +44,9 @@ struct HomeView: View {
     var body: some View {
         NavigationView {
             ScrollView {
-                VStack(spacing: 24) {
+                VStack(spacing: 16) {
                     // Header
-                    VStack(spacing: 20) {
+                    VStack(spacing: 14) {
                         // Moderní logo s vícevrstvým designem a animacemi
                         ZStack {
                             // Vnější kruh s gradientem a stínem
@@ -176,7 +176,7 @@ struct HomeView: View {
                                 .foregroundStyle(.secondary)
                         }
                     }
-                    .padding(.top, 10)
+                    .padding(.top, 4)
                     
                     // Current Month Overview
                     VStack(spacing: 20) {
@@ -243,12 +243,21 @@ struct HomeView: View {
                             }
                             
                             ActionButton(
+                                title: "Live",
+                                subtitle: "Live záznam jízdy a práce",
+                                icon: "location.fill",
+                                color: DesignSystem.Colors.primary
+                            ) {
+                                selectedTab = 2
+                            }
+                            
+                            ActionButton(
                                 title: "Historie",
                                 subtitle: "Zobrazit předchozí měsíce",
                                 icon: "clock.fill",
                                 color: DesignSystem.Colors.secondary
                             ) {
-                                selectedTab = 2
+                                selectedTab = 3
                             }
                             
                             ActionButton(
@@ -257,7 +266,7 @@ struct HomeView: View {
                                 icon: "fuelpump.fill",
                                 color: DesignSystem.Colors.accent
                             ) {
-                                selectedTab = 3
+                                selectedTab = 4
                             }
                             
                             NavigationLink(destination: StatisticsView(viewModel: viewModel, selectedTab: $selectedTab)) {
