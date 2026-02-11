@@ -134,19 +134,23 @@ struct SettingsView: View {
                     .buttonStyle(PlainButtonStyle())
                     
                     if showingNotificationTimePicker {
-                        DatePicker("", selection: Binding(
-                            get: { notificationTime },
+                        HalfHourTimePicker(selection: Binding(
+                            get: {
+                                let calendar = Calendar.current
+                                let m = notificationMinute
+                                let roundedMin = m < 15 ? 0 : 30
+                                var comp = DateComponents()
+                                comp.hour = notificationHour
+                                comp.minute = roundedMin
+                                return calendar.date(from: comp) ?? Date()
+                            },
                             set: { newTime in
                                 let calendar = Calendar.current
                                 notificationHour = calendar.component(.hour, from: newTime)
                                 notificationMinute = calendar.component(.minute, from: newTime)
-                                
-                                // Aktualizovat naplánovanou notifikaci
                                 notificationManager.scheduleDailyReminder(at: notificationHour, minute: notificationMinute)
                             }
-                        ), displayedComponents: .hourAndMinute)
-                        .datePickerStyle(.wheel)
-                        .labelsHidden()
+                        ))
                         .padding(.vertical, 4)
                     }
                 }

@@ -93,6 +93,8 @@ struct WorkDayEntryView: View {
     @ObservedObject var viewModel: MechanicViewModel
     @Binding var selectedTab: Int
     @State private var selectedDate = Date()
+    /// Čas začátku pracovní doby (povinný údaj), výchozí 7:00
+    @State private var workStartTime = Calendar.current.date(from: DateComponents(hour: 7, minute: 0)) ?? Date()
     @State private var customerName = ""
     @State private var drivingHours = ""
     @State private var workingHours = ""
@@ -413,6 +415,13 @@ struct WorkDayEntryView: View {
                     }
                     
                     Section("Časové údaje") {
+                     
+                        DatePicker("Začátek směny", selection: $workStartTime, displayedComponents: .hourAndMinute)
+                            .datePickerStyle(.compact)
+                        .opacity(animateForm ? 1.0 : 0.0)
+                        .offset(y: animateForm ? 0 : 20)
+                        .animation(.easeOut(duration: 0.6).delay(0.2), value: animateForm)
+                        
                         TimeInputField(
                             title: "Doba jízdy",
                             textValue: $drivingHours,
@@ -633,6 +642,7 @@ struct WorkDayEntryView: View {
         // Vytvořit nový záznam
         let workDay = WorkDay(
             date: selectedDate,
+            workStartTime: workStartTime,
             customerName: customerName,
             drivingHours: drivingHours.toDouble() ?? 0.0,
             workingHours: workingHours.toDouble() ?? 0.0,
@@ -656,6 +666,7 @@ struct WorkDayEntryView: View {
         city = ""
         notes = ""
         selectedDayType = .work
+        workStartTime = Calendar.current.date(from: DateComponents(hour: 7, minute: 0)) ?? Date()
         updateTimePickerValues()
     }
     

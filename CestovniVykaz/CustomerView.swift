@@ -267,11 +267,8 @@ struct CustomerView: View {
                         Spacer()
                         
                         if useTimePicker {
-                            DatePicker("", selection: $drivingTimePicker, displayedComponents: .hourAndMinute)
-                                .datePickerStyle(.compact)
-                                .labelsHidden()
+                            HalfHourTimePicker(selection: $drivingTimePicker)
                                 .onChange(of: drivingTimePicker) { _, newValue in
-                                    // Převést čas na desetinné hodiny pro uložení
                                     let calendar = Calendar.current
                                     let components = calendar.dateComponents([.hour, .minute], from: newValue)
                                     let hours = Double(components.hour ?? 0)
@@ -285,14 +282,14 @@ struct CustomerView: View {
                                 .multilineTextAlignment(.trailing)
                                 .focused($focusedField, equals: .drivingTime)
                                 .onChange(of: drivingTime) { _, newValue in
-                                    // Převést desetinné hodiny na čas pro time picker
                                     if let decimalHours = newValue.toDouble() {
                                         let hours = Int(decimalHours)
                                         let minutes = Int((decimalHours - Double(hours)) * 60)
+                                        let roundedMinute = minutes < 15 ? 0 : 30
                                         let calendar = Calendar.current
                                         var components = DateComponents()
                                         components.hour = hours
-                                        components.minute = minutes
+                                        components.minute = roundedMinute
                                         if let date = calendar.date(from: components) {
                                             drivingTimePicker = date
                                         }
@@ -487,11 +484,8 @@ struct CustomerView: View {
                         Spacer()
                         
                         if useTimePicker {
-                            DatePicker("", selection: $drivingTimePicker, displayedComponents: .hourAndMinute)
-                                .datePickerStyle(.compact)
-                                .labelsHidden()
+                            HalfHourTimePicker(selection: $drivingTimePicker)
                                 .onChange(of: drivingTimePicker) { _, newValue in
-                                    // Převést čas na desetinné hodiny pro uložení
                                     let calendar = Calendar.current
                                     let components = calendar.dateComponents([.hour, .minute], from: newValue)
                                     let hours = Double(components.hour ?? 0)
@@ -505,14 +499,14 @@ struct CustomerView: View {
                                 .multilineTextAlignment(.trailing)
                                 .focused($focusedField, equals: .drivingTime)
                                 .onChange(of: drivingTime) { _, newValue in
-                                    // Převést desetinné hodiny na čas pro time picker
                                     if let decimalHours = newValue.toDouble() {
                                         let hours = Int(decimalHours)
                                         let minutes = Int((decimalHours - Double(hours)) * 60)
+                                        let roundedMinute = minutes < 15 ? 0 : 30
                                         let calendar = Calendar.current
                                         var components = DateComponents()
                                         components.hour = hours
-                                        components.minute = minutes
+                                        components.minute = roundedMinute
                                         if let date = calendar.date(from: components) {
                                             drivingTimePicker = date
                                         }

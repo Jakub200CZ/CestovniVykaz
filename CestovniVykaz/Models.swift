@@ -38,6 +38,91 @@ extension Double {
     }
 }
 
+// MARK: - Time picker pouze s minutami 00 a 30 (celé a půl hodiny)
+struct HalfHourTimePicker: View {
+    @Binding var selection: Date
+    /// Kompaktní styl (menu) pro použití ve formuláři
+    var compact: Bool = false
+    private let calendar = Calendar.current
+    private static let minuteOptions = [0, 30]
+    
+    private var hour: Int {
+        calendar.component(.hour, from: selection)
+    }
+    private var minute: Int {
+        let m = calendar.component(.minute, from: selection)
+        return m < 15 ? 0 : 30
+    }
+    
+    private func updateSelection(hour: Int, minute: Int) {
+        if let newDate = calendar.date(bySettingHour: hour, minute: minute, second: 0, of: selection) {
+            selection = newDate
+        }
+    }
+    
+    private var hourBinding: Binding<Int> {
+        Binding(
+            get: { hour },
+            set: { updateSelection(hour: $0, minute: minute) }
+        )
+    }
+    private var minuteBinding: Binding<Int> {
+        Binding(
+            get: { minute },
+            set: { updateSelection(hour: hour, minute: $0) }
+        )
+    }
+    
+    var body: some View {
+        HStack(spacing: 8) {
+            if compact {
+                Picker("Hodina", selection: hourBinding) {
+                    ForEach(0..<24, id: \.self) { h in
+                        Text(String(format: "%d", h)).tag(h)
+                    }
+                }
+                .pickerStyle(.menu)
+                .frame(maxWidth: .infinity)
+                .clipped()
+                
+                Picker("Minuta", selection: minuteBinding) {
+                    ForEach(Self.minuteOptions, id: \.self) { m in
+                        Text(String(format: "%02d", m)).tag(m)
+                    }
+                }
+                .pickerStyle(.menu)
+                .frame(maxWidth: .infinity)
+                .clipped()
+            } else {
+                Picker("Hodina", selection: hourBinding) {
+                    ForEach(0..<24, id: \.self) { h in
+                        Text(String(format: "%d", h)).tag(h)
+                    }
+                }
+                .pickerStyle(.wheel)
+                .frame(maxWidth: .infinity)
+                .clipped()
+                
+                Picker("Minuta", selection: minuteBinding) {
+                    ForEach(Self.minuteOptions, id: \.self) { m in
+                        Text(String(format: "%02d", m)).tag(m)
+                    }
+                }
+                .pickerStyle(.wheel)
+                .frame(maxWidth: .infinity)
+                .clipped()
+            }
+        }
+        .onAppear {
+            let m = calendar.component(.minute, from: selection)
+            if m != 0 && m != 30 {
+                let rounded = m < 15 ? 0 : 30
+                updateSelection(hour: hour, minute: rounded)
+            }
+        }
+    }
+}
+
 // MARK: - Time Input Field Component
 struct TimeInputField: View {
     let title: String
@@ -66,12 +151,9 @@ struct TimeInputField: View {
             Spacer()
             
             if useTimePicker {
-                DatePicker("", selection: $timeValue, displayedComponents: .hourAndMinute)
-                    .datePickerStyle(.compact)
-                    .labelsHidden()
+                HalfHourTimePicker(selection: $timeValue)
                     .disabled(disabled)
                     .onChange(of: timeValue) { _, newValue in
-                        // Převést čas na desetinné hodiny pro uložení
                         let calendar = Calendar.current
                         let components = calendar.dateComponents([.hour, .minute], from: newValue)
                         let hours = Double(components.hour ?? 0)
@@ -86,14 +168,14 @@ struct TimeInputField: View {
                     .disabled(disabled)
                     .focused(focusedField, equals: field)
                     .onChange(of: textValue) { _, newValue in
-                        // Převést desetinné hodiny na čas pro time picker
                         if let decimalHours = newValue.toDouble() {
                             let hours = Int(decimalHours)
                             let minutes = Int((decimalHours - Double(hours)) * 60)
+                            let roundedMinute = minutes < 15 ? 0 : 30
                             let calendar = Calendar.current
                             var components = DateComponents()
                             components.hour = hours
-                            components.minute = minutes
+                            components.minute = roundedMinute
                             if let date = calendar.date(from: components) {
                                 timeValue = date
                             }
@@ -179,8 +261,15 @@ struct TrackPoint: Codable, Identifiable {
 
 // MARK: - Data Models
 struct WorkDay: Identifiable, Codable {
+    /// Výchozí čas začátku pracovní doby (7:00)
+    static func defaultWorkStartTime() -> Date {
+        Calendar.current.date(from: DateComponents(hour: 7, minute: 0)) ?? Date()
+    }
+
     var id = UUID()
     var date: Date
+    /// Čas začátku pracovní doby v daný den (ukládá se pouze hodina a minuta)
+    var workStartTime: Date
     var customerName: String
     var drivingHours: Double
     var workingHours: Double
@@ -192,9 +281,10 @@ struct WorkDay: Identifiable, Codable {
     var createdAt: Date
     /// GPS trasa z Live záznamu (jízda)
     var trackPoints: [TrackPoint]?
-    
-    init(date: Date, customerName: String = "", drivingHours: Double = 0.0, workingHours: Double = 0.0, kilometers: Double = 0.0, city: String = "", notes: String = "", isCompleted: Bool = false, dayType: DayType = .work, trackPoints: [TrackPoint]? = nil) {
+
+    init(date: Date, workStartTime: Date? = nil, customerName: String = "", drivingHours: Double = 0.0, workingHours: Double = 0.0, kilometers: Double = 0.0, city: String = "", notes: String = "", isCompleted: Bool = false, dayType: DayType = .work, trackPoints: [TrackPoint]? = nil) {
         self.date = date
+        self.workStartTime = workStartTime ?? Self.defaultWorkStartTime()
         self.customerName = customerName
         self.drivingHours = drivingHours
         self.workingHours = workingHours
@@ -213,6 +303,7 @@ struct WorkDay: Identifiable, Codable {
         
         id = try container.decode(UUID.self, forKey: .id)
         date = try container.decode(Date.self, forKey: .date)
+        workStartTime = try container.decodeIfPresent(Date.self, forKey: .workStartTime) ?? Self.defaultWorkStartTime()
         customerName = try container.decodeIfPresent(String.self, forKey: .customerName) ?? ""
         drivingHours = try container.decode(Double.self, forKey: .drivingHours)
         workingHours = try container.decode(Double.self, forKey: .workingHours)
