@@ -420,11 +420,11 @@ struct MonthDetailView: View, Identifiable {
         List {
                 if let report = report {
                     Section("Přehled měsíce") {
+                        DetailRow(title: "Celkem hodin", value: "\(report.totalHours.formattedTime(useTimePicker: useTimePicker)) h")
+                        DetailRow(title: "Celkem kilometrů", value: String(format: "%.0f km", report.totalKilometers))
                         DetailRow(title: "Celkem hodin jízda", value: "\(report.totalDrivingHours.formattedTime(useTimePicker: useTimePicker)) h")
                         DetailRow(title: "Celkem hodin práce", value: "\(report.totalWorkingHours.formattedTime(useTimePicker: useTimePicker)) h")
-                        DetailRow(title: "Celkem kilometrů", value: String(format: "%.0f km", report.totalKilometers))
-                        DetailRow(title: "Celkem hodin", value: "\(report.totalHours.formattedTime(useTimePicker: useTimePicker)) h")
-                        DetailRow(title: "Počet záznamů", value: "\(report.workDays.count)")
+                        
                         
                         // Dny podle typuf
                         if report.workingDays > 0 {
