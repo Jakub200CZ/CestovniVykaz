@@ -11,6 +11,7 @@ struct HomeView: View {
     @ObservedObject var viewModel: MechanicViewModel
     @Binding var selectedTab: Int
     @State private var showingSettings = false
+    @State private var showLogoGlow = false
     @AppStorage("useTimePicker") private var useTimePicker = false
     
     // Computed properties pro aktuální měsíc - stejná logika jako ve StatisticsView
@@ -49,6 +50,13 @@ struct HomeView: View {
                     VStack(spacing: 14) {
                         // Moderní logo s vícevrstvým designem a animacemi
                         ZStack {
+                            // Mírný modrý glow za logem (zjeví se po 0,5 s s animací 0,5 s)
+                            Circle()
+                                .fill(.blue.opacity(0.25))
+                                .frame(width: 120, height: 120)
+                                .blur(radius: 24)
+                                .opacity(showLogoGlow ? 1 : 0)
+                            
                             // Vnější kruh s gradientem a stínem
                             Circle()
                                 .fill(
@@ -155,6 +163,13 @@ struct HomeView: View {
                                         x: cos(Double(index) * .pi / 4) * 45,
                                         y: sin(Double(index) * .pi / 4) * 45
                                     )
+                            }
+                        }
+                        .onAppear {
+                            DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
+                                withAnimation(.easeOut(duration: 0.5)) {
+                                    showLogoGlow = true
+                                }
                             }
                         }
                         
