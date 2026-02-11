@@ -66,15 +66,24 @@ struct ClickableMonthBarChart: View {
     private let lineWidth: CGFloat = 2.5
     private let pointRadius: CGFloat = 6
 
-    /// Průměr hodnot v datech
-    private var averageValue: Double {
+    /// Když je nastaveno, použije se místo průměru ze všech bodů (např. průměr jen z dokončených měsíců).
+    var customAverage: Double?
+    /// Když je nastaveno, použije se pro text průměru (např. u paliva "X Kč, Y l" z dokončených měsíců).
+    var customAverageLabel: String?
+    /// Pro vybraný měsíc (index): false = měsíc není dokončen → zobrazí se červený vykřičník.
+    var isMonthCompleted: ((Int) -> Bool)?
+
+    /// Průměr hodnot v datech (nebo customAverage, pokud je nastaven)
+    private var effectiveAverageValue: Double {
+        if let custom = customAverage { return custom }
         guard !data.isEmpty else { return 0 }
         return data.map(\.value).reduce(0, +) / Double(data.count)
     }
 
     /// Text průměru pro zobrazení
     private var averageLabel: String {
-        averageDisplayText ?? valueFormat(averageValue)
+        if let custom = customAverageLabel { return custom }
+        return averageDisplayText ?? valueFormat(effectiveAverageValue)
     }
 
     var body: some View {
@@ -105,7 +114,7 @@ struct ClickableMonthBarChart: View {
                     return CGPoint(x: x, y: y)
                 }
                 let bottomY = paddingTop + chartH
-                let avgRatio = maxVal > 0 ? (averageValue / maxVal) : 0
+                let avgRatio = maxVal > 0 ? (effectiveAverageValue / maxVal) : 0
                 let averageY = paddingTop + chartH * (1 - avgRatio)
 
                 ZStack(alignment: .topLeading) {
@@ -192,12 +201,20 @@ struct ClickableMonthBarChart: View {
             if let idx = selectedIndex, idx >= 0, idx < data.count {
                 let item = data[idx]
                 let text = displayTextForSelected?(idx) ?? valueFormat(item.value)
-                Text("\(monthLabelLong(item.monthDate)): \(text)")
-                    .font(DesignSystem.Typography.subheadline)
-                    .fontWeight(.semibold)
-                    .foregroundStyle(color)
-                    .padding(.top, 4)
-                    .transition(.opacity.combined(with: .move(edge: .top)))
+                let completed = isMonthCompleted?(idx) ?? true
+                HStack(spacing: 6) {
+                    Text("\(monthLabelLong(item.monthDate)): \(text)")
+                        .font(DesignSystem.Typography.subheadline)
+                        .fontWeight(.semibold)
+                        .foregroundStyle(color)
+                    if !completed {
+                        Image(systemName: "exclamationmark.triangle.fill")
+                            .font(.system(size: 12))
+                            .foregroundStyle(.red)
+                    }
+                }
+                .padding(.top, 4)
+                .transition(.opacity.combined(with: .move(edge: .top)))
             }
         }
         .padding(DesignSystem.Spacing.cardPadding)
@@ -285,6 +302,73 @@ struct StatisticsView: View {
         let now = Date()
         let startOfCurrent = calendar.dateInterval(of: .month, for: now)?.start ?? now
         return (0..<6).reversed().compactMap { calendar.date(byAdding: .month, value: -$0, to: startOfCurrent) }
+    }
+
+    /// Počet pracovních dnů (Po–Pá) v daném měsíci
+    private func workingDaysCount(in monthStart: Date) -> Int {
+        let calendar = Calendar.current
+        guard let range = calendar.range(of: .day, in: .month, for: monthStart) else { return 0 }
+        let month = calendar.component(.month, from: monthStart)
+        let year = calendar.component(.year, from: monthStart)
+        return range.filter { day in
+            var comp = DateComponents()
+            comp.year = year
+            comp.month = month
+            comp.day = day
+            guard let date = calendar.date(from: comp) else { return false }
+            let weekday = calendar.component(.weekday, from: date)
+            return weekday >= 2 && weekday <= 6 // Po = 2, Pá = 6
+        }.count
+    }
+
+    /// Měsíc je dokončený stejně jako v Historie: počet záznamů (workDays.count) >= počet pracovních dnů (Po–Pá) v měsíci.
+    private func isMonthCompleted(monthStart: Date) -> Bool {
+        let calendar = Calendar.current
+        let report = viewModel.monthlyReports.first { calendar.isDate($0.month, equalTo: monthStart, toGranularity: .month) }
+        guard let report = report else { return false }
+        let expectedWorkingDays = workingDaysCount(in: monthStart)
+        return report.workDays.count >= expectedWorkingDays
+    }
+
+    /// Pro posledních 6 měsíců: true = měsíc dokončen (všechny pracovní dny vyplněny)
+    var last6MonthsCompleted: [Bool] {
+        last6MonthStarts.map { isMonthCompleted(monthStart: $0) }
+    }
+
+    /// Průměr hodin jen z dokončených měsíců; když žádný dokončený, nil = graf použije průměr ze všech
+    var averageHoursCompletedOnly: (value: Double?, label: String?) {
+        let hoursData = last6MonthsHoursData
+        let completed = last6MonthsCompleted
+        let sum = zip(hoursData, completed).filter(\.1).map(\.0.value).reduce(0, +)
+        let count = completed.filter { $0 }.count
+        guard count > 0 else { return (nil, nil) }
+        let avg = sum / Double(count)
+        return (avg, avg.formattedTime(useTimePicker: useTimePicker) + " h")
+    }
+
+    /// Průměr km jen z dokončených měsíců; když žádný dokončený, nil
+    var averageKmCompletedOnly: (value: Double?, label: String?) {
+        let kmData = last6MonthsKmData
+        let completed = last6MonthsCompleted
+        let sum = zip(kmData, completed).filter(\.1).map(\.0.value).reduce(0, +)
+        let count = completed.filter { $0 }.count
+        guard count > 0 else { return (nil, nil) }
+        let avg = sum / Double(count)
+        return (avg, formatKilometers(avg) + " km")
+    }
+
+    /// Průměr paliva jen z dokončených měsíců; když žádný dokončený, nil
+    var averageFuelCompletedOnly: (value: Double?, label: String?) {
+        let prices = last6MonthsFuelPrices
+        let litersData = last6MonthsFuelLitersData.map(\.value)
+        let completed = last6MonthsCompleted
+        let count = completed.filter { $0 }.count
+        guard count > 0 else { return (nil, nil) }
+        let sumKc = zip(prices, completed).filter(\.1).map(\.0).reduce(0, +)
+        let sumL = zip(litersData, completed).filter(\.1).map(\.0).reduce(0, +)
+        let avgKc = sumKc / Double(count)
+        let avgL = sumL / Double(count)
+        return (avgL, "\(formatCurrency(avgKc)) Kč, \(String(format: "%.0f", avgL)) l")
     }
 
     /// Data pro graf hodin: [(zkrácený label, hodiny, datum měsíce)]
@@ -405,7 +489,10 @@ struct StatisticsView: View {
                         color: DesignSystem.Colors.primary,
                         data: last6MonthsHoursData,
                         valueFormat: { $0.formattedTime(useTimePicker: useTimePicker) + " h" },
-                        selectedIndex: $selectedMonthIndex
+                        selectedIndex: $selectedMonthIndex,
+                        customAverage: averageHoursCompletedOnly.value,
+                        customAverageLabel: averageHoursCompletedOnly.label,
+                        isMonthCompleted: { idx in idx >= 0 && idx < last6MonthsCompleted.count ? last6MonthsCompleted[idx] : true }
                     )
                     .padding(.horizontal)
 
@@ -415,7 +502,10 @@ struct StatisticsView: View {
                         color: DesignSystem.Colors.secondary,
                         data: last6MonthsKmData,
                         valueFormat: { formatKilometers($0) + " km" },
-                        selectedIndex: $selectedMonthIndex
+                        selectedIndex: $selectedMonthIndex,
+                        customAverage: averageKmCompletedOnly.value,
+                        customAverageLabel: averageKmCompletedOnly.label,
+                        isMonthCompleted: { idx in idx >= 0 && idx < last6MonthsCompleted.count ? last6MonthsCompleted[idx] : true }
                     )
                     .padding(.horizontal)
 
@@ -431,13 +521,10 @@ struct StatisticsView: View {
                             guard idx >= 0, idx < prices.count, idx < liters.count else { return "" }
                             return "\(formatCurrency(prices[idx])) Kč, \(String(format: "%.0f", liters[idx])) l"
                         },
-                        averageDisplayText: {
-                            let n = max(last6MonthsFuelPrices.count, 1)
-                            let avgKc = last6MonthsFuelPrices.reduce(0, +) / Double(n)
-                            let avgL = last6MonthsFuelLitersData.map(\.value).reduce(0, +) / Double(n)
-                            return "\(formatCurrency(avgKc)) Kč, \(String(format: "%.0f", avgL)) l"
-                        }(),
-                        selectedIndex: $selectedMonthIndex
+                        selectedIndex: $selectedMonthIndex,
+                        customAverage: averageFuelCompletedOnly.value,
+                        customAverageLabel: averageFuelCompletedOnly.label,
+                        isMonthCompleted: { idx in idx >= 0 && idx < last6MonthsCompleted.count ? last6MonthsCompleted[idx] : true }
                     )
                     .padding(.horizontal)
                 }
